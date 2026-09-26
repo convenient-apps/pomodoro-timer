@@ -995,6 +995,12 @@
       font-size: 0.82rem;
     }
 
+    .task-manage-item .task-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .task-manage-item button {
       background: none;
       border: none;
@@ -1003,6 +1009,8 @@
     }
     .task-manage-item button.complete-btn:hover { color: var(--accent-short); }
     .task-manage-item button.restore-btn:hover { color: var(--accent-long); }
+    .task-manage-item button.edit-btn:hover { color: var(--text-main); }
+    .task-manage-item button.delete-btn:hover { color: var(--accent-work); }
 
     .completed-toggle-btn {
       width: 100%;
@@ -2718,13 +2726,31 @@
         span.textContent = task.name;
         li.appendChild(span);
 
+        const actions = document.createElement('div');
+        actions.className = 'task-item-actions';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'edit-btn';
+        editBtn.title = '名前を変更';
+        editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+        editBtn.addEventListener('click', () => renameTask(idx));
+        actions.appendChild(editBtn);
+
         const btn = document.createElement('button');
         btn.className = 'complete-btn';
         btn.title = '完了にする';
         btn.innerHTML = '<i class="fa-solid fa-check"></i>';
         btn.addEventListener('click', () => completeTask(idx));
-        li.appendChild(btn);
+        actions.appendChild(btn);
 
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.title = '削除';
+        deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        deleteBtn.addEventListener('click', () => deleteTaskPermanently(idx));
+        actions.appendChild(deleteBtn);
+
+        li.appendChild(actions);
         container.appendChild(li);
       });
     }
@@ -2748,13 +2774,31 @@
         span.textContent = task.name;
         li.appendChild(span);
 
+        const actions = document.createElement('div');
+        actions.className = 'task-item-actions';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'edit-btn';
+        editBtn.title = '名前を変更';
+        editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+        editBtn.addEventListener('click', () => renameTask(idx));
+        actions.appendChild(editBtn);
+
         const btn = document.createElement('button');
         btn.className = 'restore-btn';
         btn.title = '進行中に戻す';
         btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i>';
         btn.addEventListener('click', () => restoreTask(idx));
-        li.appendChild(btn);
+        actions.appendChild(btn);
 
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.title = '削除';
+        deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        deleteBtn.addEventListener('click', () => deleteTaskPermanently(idx));
+        actions.appendChild(deleteBtn);
+
+        li.appendChild(actions);
         container.appendChild(li);
       });
     }
@@ -2820,6 +2864,69 @@
     // 完了フォルダから進行中に戻す
     function restoreTask(idx) {
       tasks[idx].status = 'active';
+      saveStorageData();
+      renderTaskDropdown();
+      renderActiveTaskManageList();
+      renderCompletedTaskList();
+    }
+
+    // タスクの名前を変更する（過去の作業記録も新しい名前に統一する）
+    function renameTask(idx) {
+      const task = tasks[idx];
+      const input = prompt('新しいタスク名を入力してください', task.name);
+      if (input === null) return; // キャンセル
+
+      const newName = input.trim();
+      if (!newName || newName === task.name) return;
+
+      if (newName === NO_TASK_NAME) {
+        alert(`「${NO_TASK_NAME}」は予約されている名前のため使用できません。`);
+        return;
+      }
+      if (tasks.some((t, i) => i !== idx && t.name === newName)) {
+        alert('同じ名前のタスクが既に存在します。');
+        return;
+      }
+
+      const oldName = task.name;
+      task.name = newName;
+
+      Object.values(logs).forEach(log => {
+        if (log.taskTime && log.taskTime[oldName] !== undefined) {
+          log.taskTime[newName] = (log.taskTime[newName] || 0) + log.taskTime[oldName];
+          delete log.taskTime[oldName];
+        }
+        if (log.taskSessions && log.taskSessions[oldName] !== undefined) {
+          log.taskSessions[newName] = (log.taskSessions[newName] || 0) + log.taskSessions[oldName];
+          delete log.taskSessions[oldName];
+        }
+        if (log.entries) {
+          log.entries.forEach(e => { if (e.task === oldName) e.task = newName; });
+        }
+      });
+
+      if (selectedTask === oldName) selectedTask = newName;
+
+      saveStorageData();
+      renderTaskDropdown();
+      renderActiveTaskManageList();
+      renderCompletedTaskList();
+    }
+
+    // タスクを完全に削除する（過去の作業記録は残したまま、タスク一覧からのみ消す）
+    function deleteTaskPermanently(idx) {
+      const task = tasks[idx];
+      const ok = confirm(`「${task.name}」を削除します。この操作は取り消せません。\n(これまでの作業記録・統計は残ります)\n\nよろしいですか？`);
+      if (!ok) return;
+
+      const wasSelected = task.name === selectedTask;
+      tasks.splice(idx, 1);
+
+      if (wasSelected) {
+        const activeTasks = tasks.filter(t => t.status === 'active');
+        selectedTask = activeTasks.length > 0 ? activeTasks[0].name : NO_TASK_NAME;
+      }
+
       saveStorageData();
       renderTaskDropdown();
       renderActiveTaskManageList();
