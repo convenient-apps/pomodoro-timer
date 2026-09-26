@@ -2534,13 +2534,18 @@
       saveCurrentPosition();
 
       if (isIOS()) {
-        // iOSはvolumeの動的変更が効かずフェードできないため、即座に止めて末尾に無音区間を挟むだけにする
-        if (sourceType === 'local') {
-          localAudio.pause();
-        } else if (sourceType === 'youtube' && ytPlayer && isYtReady && typeof ytPlayer.pauseVideo === 'function') {
-          ytPlayer.pauseVideo();
-        }
-        if (callback) setTimeout(callback, IOS_TRACK_GAP_MS);
+        // iOSはvolumeの動的変更が効かずフェードできないため、durationMsが経過するまでは
+        // そのまま再生を続け、末尾の無音区間(IOS_TRACK_GAP_MS)分だけ手前で一時停止する。
+        // (即座に止めるとdurationMs分早く音声が切れてしまうため)
+        const pauseDelay = Math.max(0, durationMs - IOS_TRACK_GAP_MS);
+        setTimeout(() => {
+          if (sourceType === 'local') {
+            localAudio.pause();
+          } else if (sourceType === 'youtube' && ytPlayer && isYtReady && typeof ytPlayer.pauseVideo === 'function') {
+            ytPlayer.pauseVideo();
+          }
+        }, pauseDelay);
+        if (callback) setTimeout(callback, durationMs);
         return;
       }
 
