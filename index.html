@@ -1405,7 +1405,9 @@
       { name: '仕事', status: 'active' },
       { name: 'コーディング', status: 'active' }
     ];
-    let selectedTask = '勉強';
+    // タスク管理(完了/削除)の対象にならない特別な選択肢。tasks配列には追加しない。
+    const NO_TASK_NAME = 'None';
+    let selectedTask = NO_TASK_NAME;
     let logs = {};
 
     let playlists = {
@@ -1671,9 +1673,14 @@
       if (tasks.length > MAX_TASKS) tasks = tasks.slice(0, MAX_TASKS);
 
       const activeTasks = tasks.filter(t => t.status === 'active');
-      if (activeTasks.length > 0) {
-        selectedTask = activeTasks[0].name;
+      const savedSelectedTask = await kvGet('selectedTask');
+      if (savedSelectedTask === NO_TASK_NAME || activeTasks.some(t => t.name === savedSelectedTask)) {
+        selectedTask = savedSelectedTask;
+      } else if (savedSelectedTask) {
+        // 以前選んでいたタスクが完了/削除等で無くなった場合のみ、進行中タスクの先頭にフォールバックする
+        selectedTask = activeTasks.length > 0 ? activeTasks[0].name : NO_TASK_NAME;
       }
+      // savedSelectedTaskが無い(初回起動時)は selectedTask の初期値(NO_TASK_NAME)のままにする
 
       await saveStorageData();
     }
@@ -1693,7 +1700,8 @@
           kvSet('settings', settings),
           kvSet('playlists', serializablePlaylists),
           kvSet('tasks', tasks),
-          kvSet('logs', logs)
+          kvSet('logs', logs),
+          kvSet('selectedTask', selectedTask)
         ]);
       } catch (e) {
         console.warn('データの保存に失敗しました', e);
@@ -1981,14 +1989,6 @@
     function isIOS() {
       return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    }
-
-    // iOSでは音量フェードが効かないため、代わりに曲の頭出し/末尾に短い無音区間を挟んで
-    // 切り替わりの唐突さを和らげる。この間隔(ms)がその長さ。
-    const IOS_TRACK_GAP_MS = 300;
-
-    function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     // --- 初期化 ---
@@ -2448,26 +2448,14 @@
           localAudio.currentTime = savedPositions.local[currentMode] || 0;
         }
 
-        if (isIOS()) {
-          // iOSはvolumeの動的変更が効かずフェードできないため、頭出しに無音区間を挟むだけにする
-          localAudio.volume = masterVolume;
-          await sleep(IOS_TRACK_GAP_MS);
-          localAudio.play().catch(() => handlePlaybackFailure());
-        } else {
-          localAudio.volume = 0;
-          localAudio.play().then(() => {
-            fadeLocalVolumeTo(masterVolume, durationMs);
-          }).catch(() => handlePlaybackFailure());
-        }
+        localAudio.volume = 0;
+        localAudio.play().then(() => {
+          fadeLocalVolumeTo(masterVolume, durationMs);
+        }).catch(() => handlePlaybackFailure());
 
       } else if (sourceType === 'youtube') {
         localAudio.pause();
-        if (isIOS()) {
-          await sleep(IOS_TRACK_GAP_MS);
-          playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, 0);
-        } else {
-          playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, durationMs);
-        }
+        playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, durationMs);
       }
     }
 
@@ -2532,23 +2520,6 @@
 
     function fadeOutBgm(durationMs = 5000, callback = null) {
       saveCurrentPosition();
-
-      if (isIOS()) {
-        // iOSはvolumeの動的変更が効かずフェードできないため、durationMsが経過するまでは
-        // そのまま再生を続け、末尾の無音区間(IOS_TRACK_GAP_MS)分だけ手前で一時停止する。
-        // (即座に止めるとdurationMs分早く音声が切れてしまうため)
-        const pauseDelay = Math.max(0, durationMs - IOS_TRACK_GAP_MS);
-        setTimeout(() => {
-          if (sourceType === 'local') {
-            localAudio.pause();
-          } else if (sourceType === 'youtube' && ytPlayer && isYtReady && typeof ytPlayer.pauseVideo === 'function') {
-            ytPlayer.pauseVideo();
-          }
-        }, pauseDelay);
-        if (callback) setTimeout(callback, durationMs);
-        return;
-      }
-
       if (sourceType === 'local') {
         fadeLocalVolumeTo(0, durationMs, () => {
           localAudio.pause();
@@ -2716,6 +2687,14 @@
     function renderTaskDropdown() {
       const select = document.getElementById('activeTaskSelect');
       select.innerHTML = '';
+
+      // タスク管理では削除できない固定の選択肢（tasks配列には含めない）
+      const noTaskOpt = document.createElement('option');
+      noTaskOpt.value = NO_TASK_NAME;
+      noTaskOpt.textContent = NO_TASK_NAME;
+      if (selectedTask === NO_TASK_NAME) noTaskOpt.selected = true;
+      select.appendChild(noTaskOpt);
+
       const activeTasks = tasks.filter(t => t.status === 'active');
       activeTasks.forEach(task => {
         const opt = document.createElement('option');
@@ -2790,12 +2769,18 @@
 
     function onTaskChange() {
       selectedTask = document.getElementById('activeTaskSelect').value;
+      saveStorageData();
     }
 
     function addNewTask() {
       const input = document.getElementById('newTaskNameInput');
       const name = input.value.trim();
       if (!name) return;
+
+      if (name === NO_TASK_NAME) {
+        alert(`「${NO_TASK_NAME}」は予約されている名前のため使用できません。`);
+        return;
+      }
 
       const existing = tasks.find(t => t.name === name);
       if (!existing && tasks.length >= MAX_TASKS) {
@@ -2823,7 +2808,7 @@
 
       if (wasSelected) {
         const activeTasks = tasks.filter(t => t.status === 'active');
-        selectedTask = activeTasks.length > 0 ? activeTasks[0].name : '';
+        selectedTask = activeTasks.length > 0 ? activeTasks[0].name : NO_TASK_NAME;
       }
 
       saveStorageData();
