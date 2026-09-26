@@ -1064,10 +1064,10 @@
       <h1>THE POMODORO</h1>
       <p class="sr-only">ポモドーロテクニックで集中力を高める無料のタイマー＆タスク管理アプリ。作業と休憩を自動で切り替え、タスクごとの時間を記録・集計します。YouTubeで好きな曲・動画をBGMに設定でき、自分好みの音楽で集中できるのが特徴です。</p>
       <div class="header-actions">
+        <button class="icon-btn" id="openReadmeBtn" title="使い方・注意事項"><i class="fa-solid fa-circle-info"></i></button>
         <button class="icon-btn" id="openAnalyticsBtn" title="統計・レポート"><i class="fa-solid fa-chart-pie"></i></button>
         <button class="icon-btn" id="openTasksBtn" title="タスク管理"><i class="fa-solid fa-list-check"></i></button>
         <button class="icon-btn" id="openSettingsBtn" title="設定"><i class="fa-solid fa-gear"></i></button>
-        <button class="icon-btn" id="openReadmeBtn" title="使い方・注意事項"><i class="fa-solid fa-circle-info"></i></button>
       </div>
     </div>
 
@@ -1111,7 +1111,7 @@
       </div>
 
       <!-- 音量バー -->
-      <div class="volume-container">
+      <div class="volume-container" id="volumeContainer">
         <i class="fa-solid fa-volume-low"></i>
         <input type="range" class="volume-slider" id="masterVolume" min="0" max="100" value="80">
         <span class="volume-text" id="volumeValText" style="width: 30px; text-align: right;">80%</span>
@@ -1147,7 +1147,7 @@
         <div id="localExtrasArea" style="display: none;">
           <div class="file-drop-area" id="fileDropArea">
             <i class="fa-solid fa-cloud-arrow-up" style="font-size:1.2rem; color: var(--text-muted);"></i>
-            <p>MP3等の音楽ファイルを選択</p>
+            <p>MP3、m4a、wav等の音楽ファイルを選択</p>
             <input type="file" id="audioFileInput" accept="audio/*" style="display: none;">
           </div>
         </div>
@@ -1330,7 +1330,7 @@
       <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
 
       <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">データのバックアップ</h4>
-      <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 8px;">端末のキャッシュ削除などに備えて、設定・タスク・記録をファイルに保存/読み込みできます。ローカル音楽ファイル(mp3等)の実体は保存されないため、必要な場合は読み込み後に再度追加してください。</p>
+      <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 8px;">端末のキャッシュ削除などに備えて、設定・タスク・記録をファイルに保存/読み込みできます。ローカル音楽ファイル(mp3、m4a、wav等)の実体は保存されないため、必要な場合は読み込み後に再度追加してください。</p>
       <div class="modal-footer" style="margin-top: 0;">
         <button class="btn-full secondary" id="exportDataBtn"><i class="fa-solid fa-download"></i> エクスポート</button>
         <button class="btn-full secondary" id="importTriggerBtn"><i class="fa-solid fa-upload"></i> インポート</button>
@@ -1976,8 +1976,28 @@
       if (el) el.style.display = 'none';
     }
 
+    // iOS(Safari/Chrome/Firefox等、WebKit系ブラウザ全般)では音量をJSから制御できないため、
+    // 音量スライダーを操作しても反映されない。誤操作を避けるためスライダー自体を非表示にする。
+    function isIOS() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    // iOSでは音量フェードが効かないため、代わりに曲の頭出し/末尾に短い無音区間を挟んで
+    // 切り替わりの唐突さを和らげる。この間隔(ms)がその長さ。
+    const IOS_TRACK_GAP_MS = 300;
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     // --- 初期化 ---
     window.addEventListener('DOMContentLoaded', async () => {
+      if (isIOS()) {
+        const volumeContainer = document.getElementById('volumeContainer');
+        if (volumeContainer) volumeContainer.style.display = 'none';
+      }
+
       await loadStorageData();
 
       timeLeft = settings.workTime * 60;
@@ -2428,14 +2448,26 @@
           localAudio.currentTime = savedPositions.local[currentMode] || 0;
         }
 
-        localAudio.volume = 0;
-        localAudio.play().then(() => {
-          fadeLocalVolumeTo(masterVolume, durationMs);
-        }).catch(() => handlePlaybackFailure());
+        if (isIOS()) {
+          // iOSはvolumeの動的変更が効かずフェードできないため、頭出しに無音区間を挟むだけにする
+          localAudio.volume = masterVolume;
+          await sleep(IOS_TRACK_GAP_MS);
+          localAudio.play().catch(() => handlePlaybackFailure());
+        } else {
+          localAudio.volume = 0;
+          localAudio.play().then(() => {
+            fadeLocalVolumeTo(masterVolume, durationMs);
+          }).catch(() => handlePlaybackFailure());
+        }
 
       } else if (sourceType === 'youtube') {
         localAudio.pause();
-        playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, durationMs);
+        if (isIOS()) {
+          await sleep(IOS_TRACK_GAP_MS);
+          playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, 0);
+        } else {
+          playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, durationMs);
+        }
       }
     }
 
@@ -2500,6 +2532,18 @@
 
     function fadeOutBgm(durationMs = 5000, callback = null) {
       saveCurrentPosition();
+
+      if (isIOS()) {
+        // iOSはvolumeの動的変更が効かずフェードできないため、即座に止めて末尾に無音区間を挟むだけにする
+        if (sourceType === 'local') {
+          localAudio.pause();
+        } else if (sourceType === 'youtube' && ytPlayer && isYtReady && typeof ytPlayer.pauseVideo === 'function') {
+          ytPlayer.pauseVideo();
+        }
+        if (callback) setTimeout(callback, IOS_TRACK_GAP_MS);
+        return;
+      }
+
       if (sourceType === 'local') {
         fadeLocalVolumeTo(0, durationMs, () => {
           localAudio.pause();
