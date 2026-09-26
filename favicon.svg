@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect x="0" y="0" width="200" height="200" fill="#000000"/>
+  <!-- 外側リング: 目標セット全体の進捗（グレー、60%進行） -->
+  <circle cx="100" cy="100" r="78" fill="none" stroke="#2c2c2e" stroke-width="32"/>
+  <circle cx="100" cy="100" r="78" fill="none" stroke="#636366" stroke-width="32"
+          stroke-dasharray="490.09" stroke-dashoffset="196.04"
+          transform="rotate(-90 100 100)"/>
+  <!-- 内側リング: 現在のセッションの進捗（赤、40%進行） -->
+  <circle cx="100" cy="100" r="36" fill="none" stroke="#2c2c2e" stroke-width="32"/>
+  <circle cx="100" cy="100" r="36" fill="none" stroke="#ff453a" stroke-width="32"
+          stroke-dasharray="226.19" stroke-dashoffset="135.71"
+          transform="rotate(-90 100 100)"/>
+</svg>

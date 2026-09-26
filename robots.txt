@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://convenient-apps.github.io/pomodoro-timer/sitemap.xml

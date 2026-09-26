@@ -1,0 +1,3237 @@
+<!-- © 2026 THE POMODORO. All Rights Reserved. -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>THE POMODORO | 好きな曲をBGMにできるポモドーロタイマー＆タスク管理</title>
+  <meta name="description" content="ポモドーロテクニックで集中力を高める無料のタイマー＆タスク管理アプリ「THE POMODORO」。YouTubeで好きな曲・動画をBGMに設定でき、自分好みの音楽で集中できます。インストール不要、ブラウザだけですぐに使えます。">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://convenient-apps.github.io/pomodoro-timer/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ja_JP">
+  <meta property="og:title" content="THE POMODORO | 好きな曲をBGMにできるポモドーロタイマー">
+  <meta property="og:description" content="YouTubeで好きな曲・動画をBGMに設定できるポモドーロタイマー＆タスク管理アプリ。インストール不要、ブラウザだけですぐに使えます。">
+  <meta property="og:url" content="https://convenient-apps.github.io/pomodoro-timer/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="THE POMODORO | 好きな曲をBGMにできるポモドーロタイマー">
+  <meta name="twitter:description" content="YouTubeで好きな曲・動画をBGMに設定できるポモドーロタイマー＆タスク管理アプリ。インストール不要、ブラウザだけですぐに使えます。">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <!-- 検索エンジン向けの構造化データ（このアプリが何であるかを機械的に伝える） -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "THE POMODORO",
+    "description": "ポモドーロテクニックで集中力を高める無料のタイマー＆タスク管理アプリ。YouTubeで好きな曲・動画をBGMに設定でき、自分好みの音楽で集中できます。インストール不要、ブラウザだけですぐに使えます。",
+    "applicationCategory": "ProductivityApplication",
+    "operatingSystem": "Any（Webブラウザ）",
+    "url": "https://convenient-apps.github.io/pomodoro-timer/",
+    "inLanguage": "ja",
+    "featureList": [
+      "ポモドーロタイマー（作業・短い休憩・長い休憩の自動切り替え）",
+      "YouTube動画を使った好きな曲・音楽のBGM再生",
+      "タスクごとの作業時間記録",
+      "統計・レポート表示"
+    ],
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "JPY"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-color: #000000;
+      --card-bg: rgba(28, 28, 30, 0.72);
+      --card-bg-solid: #1c1c1e;
+      --segment-bg: rgba(118, 118, 128, 0.24);
+      --segment-active: #48484a;
+      --accent-work: #ff453a;
+      --accent-short: #32d74b;
+      --accent-long: #0a84ff;
+      --text-main: #ffffff;
+      --text-secondary: rgba(235, 235, 245, 0.6);
+      --text-muted: rgba(235, 235, 245, 0.45);
+      --border-color: rgba(255, 255, 255, 0.09);
+      --current-accent: var(--accent-work);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+        "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      padding-top: calc(20px + env(safe-area-inset-top, 0px));
+      padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 6px 0;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 18px;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: color 0.15s ease, transform 0.1s ease;
+    }
+
+    .icon-btn:hover { color: var(--text-main); }
+    .icon-btn:active { transform: scale(0.9); color: var(--text-main); }
+
+    .task-selector-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      /* 背景が常に単色の黒(--bg-color)なので、backdrop-filterのぼかしは
+         見た目に何も寄与しない（単色をぼかしても同じ単色になるだけ）。
+         毎秒のタイマー更新のたびに再計算される重いフィルタだったため外した */
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+    }
+
+    .task-selector-bar select {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-size: 0.9rem;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .task-selector-bar option {
+      background: #1c1c1e;
+      color: var(--text-main);
+    }
+
+    /* タイマーカード（backdrop-filterは背景が単色黒のため視覚上ノーオペレーションになるので外している） */
+    .timer-section {
+      background: var(--card-bg);
+      border-radius: 22px;
+      padding: 26px 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .timer-main-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .progress-circle-container {
+      position: relative;
+      width: 190px;
+      height: 190px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .progress-ring { transform: rotate(-90deg); }
+    .progress-ring__circle-bg { stroke: rgba(255, 255, 255, 0.07); }
+
+    /* 外側の円: 設定している目標ポモドーロセット全体（例: 作業25分+休憩5分×4回）の進捗 */
+    .progress-ring__circle-outer {
+      stroke: #636366;
+      stroke-dasharray: 540.35;
+      stroke-dashoffset: 540.35;
+      transition: stroke-dashoffset 0.3s ease;
+      stroke-linecap: round;
+    }
+
+    /* 内側の円: 現在のセッション（作業/休憩）の進捗 */
+    .progress-ring__circle-inner {
+      stroke: var(--current-accent);
+      stroke-dasharray: 345.58;
+      stroke-dashoffset: 345.58;
+      transition: stroke-dashoffset 0.3s ease, stroke 0.4s ease;
+      stroke-linecap: round;
+    }
+
+    /* 各円の線の上部に重ねて表示する、カウントアップの経過時間。
+       円の色に文字が埋もれないよう、文字の背後に不透明な背景バッジを敷いて
+       レイヤー順を「文字 > 背景バッジ > 円」にしている */
+    .ring-elapsed-label {
+      position: absolute;
+      z-index: 2;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+      pointer-events: none;
+      padding: 2px 7px;
+      border-radius: 7px;
+      background: #000000;
+    }
+
+    .ring-elapsed-outer { top: 0px; color: var(--text-secondary); }
+    .ring-elapsed-inner { top: 28px; color: var(--current-accent); transition: color 0.4s ease; }
+
+    .timer-inner {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .mode-label {
+      font-size: 0.9rem;
+      letter-spacing: 0.01em;
+      color: var(--text-secondary);
+      font-weight: 600;
+      transition: color 0.4s ease;
+    }
+
+    /* 円の外側（右）に出すカウントダウン表示とポモドーロ数 */
+    .timer-side-info {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .time-display-side {
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+    }
+
+    /* 桁ごとの字幅の微差で円やレイアウトが左右にズレないよう、
+       分・秒それぞれを常に一定の表示幅に固定する（中身は常に2桁固定なので幅は変化しない） */
+    .time-minutes-num {
+      font-size: 3.4rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      display: inline-block;
+      width: 2.15ch;
+      text-align: right;
+    }
+
+    .time-seconds-num {
+      font-size: 2.3rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      display: inline-block;
+      width: 2.75ch;
+      text-align: left;
+    }
+
+    .pomo-count {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* コントロールボタン（中央のスタート/一時停止のみ） */
+    .controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .btn-main {
+      background: var(--current-accent);
+      color: #fff;
+      border: none;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      font-size: 1.3rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.12s ease, background-color 0.4s ease;
+    }
+
+    .btn-main:active { transform: scale(0.92); }
+
+    /* 音量バー */
+    .volume-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      margin-top: 18px;
+      padding: 0 4px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .volume-slider { flex: 1; }
+
+    /* iOSスタイルのスライダー（レンジ入力全般に適用） */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.16);
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+      margin-top: 0;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border: none;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    /* BGM設定セクション（backdrop-filterは背景が単色黒のため視覚上ノーオペレーションになるので外している） */
+    .bgm-section {
+      background: var(--card-bg);
+      border-radius: 22px;
+      padding: 18px;
+    }
+
+    .bgm-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .bgm-section-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .bgm-tabs {
+      display: flex;
+      gap: 2px;
+      background: var(--segment-bg);
+      padding: 2px;
+      border-radius: 9px;
+      margin-bottom: 14px;
+    }
+
+    .bgm-tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      padding: 6px 0;
+      font-size: 0.78rem;
+      font-weight: 500;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .bgm-tab-btn.active {
+      background: var(--segment-active);
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .source-selector {
+      display: flex;
+      gap: 2px;
+      background: var(--segment-bg);
+      padding: 2px;
+      border-radius: 9px;
+      margin-bottom: 14px;
+    }
+
+    .source-btn {
+      flex: 1;
+      padding: 6px;
+      border: none;
+      background: none;
+      color: var(--text-secondary);
+      border-radius: 7px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .source-btn.active {
+      color: var(--text-main);
+      font-weight: 600;
+      background: var(--segment-active);
+    }
+
+    .file-drop-area {
+      border: 1px dashed rgba(255, 255, 255, 0.18);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .file-drop-area:hover { border-color: rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.03); }
+    .file-drop-area p { font-size: 0.75rem; color: var(--text-muted); }
+
+    .audio-player-box {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+    }
+
+    .seek-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .seek-slider { flex: 1; }
+
+    .time-text {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .yt-input-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .yt-input-group input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.06);
+      border: none;
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: var(--text-main);
+      font-size: 0.85rem;
+    }
+
+    .yt-input-group button {
+      background: var(--current-accent);
+      color: white;
+      border: none;
+      padding: 0 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .yt-presets {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .preset-chip {
+      background: rgba(255, 255, 255, 0.07);
+      border: none;
+      border-radius: 999px;
+      padding: 5px 11px;
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .preset-chip:hover { background: rgba(255, 255, 255, 0.14); }
+
+    .yt-player-box {
+      /* YouTube API規約により、埋め込みプレイヤーは最低200x200pxを維持する必要がある */
+      position: relative;
+      width: 100%;
+      min-width: 200px;
+      min-height: 200px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      margin-bottom: 10px;
+    }
+
+    .yt-player-box iframe { width: 100%; height: 100%; border: none; }
+
+    .yt-status {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      color: var(--text-main);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      text-align: center;
+      padding: 10px;
+      z-index: 2;
+    }
+
+    .yt-status button {
+      background: var(--current-accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 5px 14px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .playlist { list-style: none; max-height: 100px; overflow-y: auto; }
+    .playlist-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      margin-bottom: 4px;
+      font-size: 0.75rem;
+    }
+
+    .playlist-item button { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+    .disabled-control { opacity: 0.35 !important; pointer-events: none !important; }
+
+    /* モーダル（iOSのシート/マテリアル風） */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 100;
+    }
+
+    .modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+    .modal {
+      background: rgba(28, 28, 30, 0.92);
+      backdrop-filter: blur(30px) saturate(180%);
+      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      border-radius: 20px;
+      padding: 22px;
+      width: 90%;
+      max-width: 400px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-header h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .setting-row label { font-size: 0.88rem; color: var(--text-main); }
+    .setting-row input[type="number"] {
+      width: 60px; background: rgba(255, 255, 255, 0.08);
+      border: none; border-radius: 8px;
+      padding: 6px; color: var(--text-main); text-align: center;
+      font-size: 0.9rem;
+    }
+
+    /* iOSスタイルのトグルスイッチ */
+    .setting-row input[type="checkbox"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 48px;
+      height: 28px;
+      border-radius: 999px;
+      background: rgba(120, 120, 128, 0.32);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .setting-row input[type="checkbox"]::before {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease;
+    }
+
+    .setting-row input[type="checkbox"]:checked {
+      background: var(--accent-short);
+    }
+
+    .setting-row input[type="checkbox"]:checked::before {
+      transform: translateX(20px);
+    }
+
+    .modal-footer { display: flex; gap: 10px; margin-top: 16px; }
+
+    .btn-full {
+      flex: 1; padding: 11px; border: none; border-radius: 12px;
+      background: var(--accent-work); color: white; cursor: pointer;
+      font-size: 0.88rem; font-weight: 600;
+      transition: opacity 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-full:active { transform: scale(0.97); }
+    .btn-full.secondary { background: rgba(255, 255, 255, 0.09); color: var(--text-main); }
+
+    /* カレンダー・レポート関連UI */
+    .view-toggle {
+      display: flex;
+      gap: 2px;
+      background: var(--segment-bg);
+      padding: 2px;
+      border-radius: 9px;
+      margin-bottom: 16px;
+    }
+
+    .view-toggle button {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      padding: 6px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .view-toggle button.active {
+      background: var(--segment-active);
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .calendar-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .cal-cell {
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      border-radius: 10px;
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .cal-cell:hover { background: rgba(255, 255, 255, 0.1); }
+
+    /* 達成度に応じて満ちていく、ドーナツ型のミニ進捗リング。
+       --pct（0〜100）で塗りの割合を指定する */
+    .cal-cell-num { font-weight: 600; }
+
+    .day-progress-ring {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      margin-top: 3px;
+      background: conic-gradient(var(--accent-work) calc(var(--pct, 0) * 1%), rgba(255, 255, 255, 0.1) 0);
+      transition: background 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .day-progress-ring::after {
+      content: '';
+      display: block;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #1c1c1e;
+    }
+
+    .calendar-grid-alt {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .period-summary {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .period-summary-value {
+      font-size: 1.7rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .period-summary-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .timeline-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .timeline-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 0.8rem;
+      gap: 10px;
+    }
+
+    .timeline-time {
+      font-variant-numeric: tabular-nums;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .timeline-task {
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .timeline-empty {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 10px 0;
+    }
+
+    .detail-card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 14px;
+      padding: 16px 12px;
+      margin-bottom: 16px;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    .detail-hero {
+      margin: 8px 0 4px;
+    }
+
+    .detail-hero-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .detail-hero-label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .detail-sub {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    .detail-sub b {
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .detail-task-breakdown {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-color);
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.75rem;
+    }
+
+    .detail-task-breakdown .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-secondary);
+    }
+
+    .detail-task-breakdown .breakdown-row span:last-child {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    /* タスクごとの色分け用のドット（タスク別時間の一覧・内訳で共通使用） */
+    .task-color-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .manual-add-box {
+      margin-top: -6px;
+      margin-bottom: 16px;
+    }
+
+    .manual-add-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .manual-add-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .manual-add-row select {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.06);
+      border: none;
+      border-radius: 10px;
+      padding: 7px 8px;
+      color: var(--text-main);
+      font-size: 0.8rem;
+    }
+
+    .manual-add-row input {
+      width: 60px;
+      background: rgba(255, 255, 255, 0.06);
+      border: none;
+      border-radius: 10px;
+      padding: 7px;
+      color: var(--text-main);
+      text-align: center;
+      font-size: 0.8rem;
+    }
+
+    .manual-add-row button {
+      background: var(--current-accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 7px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .task-report-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .task-report-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+    }
+
+    .task-report-item .task-report-value {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .task-report-item .task-report-value small {
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
+
+    .bar-bg {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: var(--accent-work);
+      border-radius: 999px;
+    }
+
+    .task-manage-list {
+      list-style: none;
+      margin-top: 8px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .task-manage-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      margin-bottom: 4px;
+      font-size: 0.82rem;
+    }
+
+    .task-manage-item button {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .task-manage-item button.complete-btn:hover { color: var(--accent-short); }
+    .task-manage-item button.restore-btn:hover { color: var(--accent-long); }
+
+    .completed-toggle-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      color: var(--text-main);
+      padding: 11px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    .readme-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding-left: 18px;
+    }
+
+    .readme-list li { list-style: disc; }
+    .readme-list li b { color: var(--text-main); }
+
+    /* 画面下部の著作権表記。目立たせず、他の要素の邪魔にならない程度の控えめな表示にする */
+    .app-footer {
+      text-align: center;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      opacity: 0.6;
+    }
+
+    /* 画面には表示しないが、検索エンジンやスクリーンリーダーには読み上げさせる説明文 */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- ヘッダー -->
+    <div class="header">
+      <h1>THE POMODORO</h1>
+      <p class="sr-only">ポモドーロテクニックで集中力を高める無料のタイマー＆タスク管理アプリ。作業と休憩を自動で切り替え、タスクごとの時間を記録・集計します。YouTubeで好きな曲・動画をBGMに設定でき、自分好みの音楽で集中できるのが特徴です。</p>
+      <div class="header-actions">
+        <button class="icon-btn" id="openAnalyticsBtn" title="統計・レポート"><i class="fa-solid fa-chart-pie"></i></button>
+        <button class="icon-btn" id="openTasksBtn" title="タスク管理"><i class="fa-solid fa-list-check"></i></button>
+        <button class="icon-btn" id="openSettingsBtn" title="設定"><i class="fa-solid fa-gear"></i></button>
+        <button class="icon-btn" id="openReadmeBtn" title="使い方・注意事項"><i class="fa-solid fa-circle-info"></i></button>
+      </div>
+    </div>
+
+    <!-- メイン画面のタスク選択 -->
+    <div class="task-selector-bar">
+      <i class="fa-solid fa-list-check" style="color: var(--text-muted);"></i>
+      <select id="activeTaskSelect"></select>
+    </div>
+
+    <!-- タイマー（円形表示） -->
+    <div class="timer-section">
+      <div class="timer-main-row">
+        <div class="progress-circle-container">
+          <svg class="progress-ring" width="200" height="200">
+            <circle class="progress-ring__circle-bg" stroke-width="16" fill="transparent" r="86" cx="100" cy="100"/>
+            <circle class="progress-ring__circle-outer" id="outerProgressCircle" stroke-width="16" fill="transparent" r="86" cx="100" cy="100"/>
+            <circle class="progress-ring__circle-bg" stroke-width="16" fill="transparent" r="55" cx="100" cy="100"/>
+            <circle class="progress-ring__circle-inner" id="innerProgressCircle" stroke-width="16" fill="transparent" r="55" cx="100" cy="100"/>
+          </svg>
+          <!-- 外側の円＝目標ポモドーロセット全体、内側の円＝現在のセッションの、それぞれのカウントアップ経過時間 -->
+          <div class="ring-elapsed-label ring-elapsed-outer" id="outerElapsedLabel">0:00</div>
+          <div class="ring-elapsed-label ring-elapsed-inner" id="innerElapsedLabel">0:00</div>
+          <div class="timer-inner">
+            <div class="mode-label" id="modeLabel">作業中</div>
+          </div>
+        </div>
+
+        <div class="timer-side-info">
+          <div class="time-display-side">
+            <span class="time-minutes-num" id="timeMinutesText">25</span><span class="time-seconds-num" id="timeSecondsText">:00</span>
+          </div>
+          <div class="pomo-count">
+            <i class="fa-solid fa-circle-check"></i> <span id="currentPomo">0</span> / <span id="targetPomoDisplay">4</span> ポモドーロ
+          </div>
+        </div>
+      </div>
+
+      <!-- コントロールボタン（スタート / 一時停止） -->
+      <div class="controls">
+        <button class="btn-main" id="startPauseBtn" title="スタート/一時停止"><i class="fa-solid fa-play" id="playIcon"></i></button>
+      </div>
+
+      <!-- 音量バー -->
+      <div class="volume-container">
+        <i class="fa-solid fa-volume-low"></i>
+        <input type="range" class="volume-slider" id="masterVolume" min="0" max="100" value="80">
+        <span class="volume-text" id="volumeValText" style="width: 30px; text-align: right;">80%</span>
+      </div>
+    </div>
+
+    <!-- BGM設定セクション -->
+    <div class="bgm-section">
+      <div class="bgm-section-header">
+        <span class="bgm-section-title">BGM設定</span>
+        <button class="icon-btn" id="bgmCollapseToggleBtn" title="設定欄を折りたたむ">
+          <i class="fa-solid fa-chevron-up" id="bgmCollapseIcon"></i>
+        </button>
+      </div>
+
+      <!-- 設定・選択まわりのUI（折りたたみ対象。再生中の本体プレイヤーは含まない） -->
+      <div id="bgmCollapsibleArea">
+        <div class="source-selector" id="sourceSelectorArea">
+          <button class="source-btn active" id="srcYtBtn" data-source-type="youtube">
+            <i class="fa-brands fa-youtube"></i> YouTube
+          </button>
+          <button class="source-btn" id="srcLocalBtn" data-source-type="local">
+            <i class="fa-solid fa-file-audio"></i> ローカル音源
+          </button>
+        </div>
+
+        <div class="bgm-tabs" id="bgmTabsArea">
+          <button class="bgm-tab-btn active" data-mode="work">作業用</button>
+          <button class="bgm-tab-btn" data-mode="shortBreak">短休憩用</button>
+          <button class="bgm-tab-btn" data-mode="longBreak">長休憩用</button>
+        </div>
+
+        <div id="localExtrasArea" style="display: none;">
+          <div class="file-drop-area" id="fileDropArea">
+            <i class="fa-solid fa-cloud-arrow-up" style="font-size:1.2rem; color: var(--text-muted);"></i>
+            <p>MP3等の音楽ファイルを選択</p>
+            <input type="file" id="audioFileInput" accept="audio/*" style="display: none;">
+          </div>
+        </div>
+
+        <div id="ytExtrasArea">
+          <div class="yt-input-group" id="ytInputArea">
+            <input type="text" id="ytUrlInput" placeholder="YouTube URL / ID">
+            <button id="addYtBtn">追加</button>
+          </div>
+          <div class="yt-presets" id="ytPresetsArea">
+            <button class="preset-chip" data-yt-id="SDmbGrQqWog" data-yt-title="☔ 雨の音">☔ 雨の音</button>
+            <button class="preset-chip" data-yt-id="tvNdPc7ed90" data-yt-title="🔥 焚き火">🔥 焚き火</button>
+            <button class="preset-chip" data-yt-id="64eIdY9GQN4" data-yt-title="🏞️ 川の音">🏞️ 川の音</button>
+            <button class="preset-chip" data-yt-id="-FlxM_0S2lA" data-yt-title="🎧 Lofi">🎧 Lofi</button>
+            <button class="preset-chip" data-yt-id="gdssxLx7ofs" data-yt-title="🎹 Miku">🎹 Miku</button>
+          </div>
+        </div>
+
+        <ul class="playlist" id="playlistItems"></ul>
+      </div>
+
+      <!-- 再生中の本体プレイヤー（折りたたみ中も常に表示。YouTube動画はAPI規約により常に視認可能な状態を保つ必要がある） -->
+      <div id="localSourceArea" style="display: none;">
+        <div class="audio-player-box">
+          <div class="seek-container">
+            <span class="time-text" id="currentTimeText">00:00</span>
+            <input type="range" class="seek-slider" id="seekSlider" min="0" max="100" value="0">
+            <span class="time-text" id="durationText">00:00</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="ytSourceArea">
+        <div class="yt-player-box">
+          <div id="ytPlayerHolder"></div>
+          <div class="yt-status" id="ytStatusMsg"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-footer">© 2026 THE POMODORO. All Rights Reserved.</div>
+  </div>
+
+  <!-- カレンダー・アナリティクス モーダル -->
+  <div class="modal-overlay" id="analyticsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>アクティビティ & カレンダー</h3>
+        <button class="icon-btn" data-close-modal="analyticsModal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="view-toggle">
+        <button id="viewTodayBtn" data-view="today">今日</button>
+        <button id="viewWeekBtn" data-view="week">週間</button>
+        <button id="viewMonthBtn" class="active" data-view="month">月間</button>
+        <button id="viewYearBtn" data-view="year">年間</button>
+        <button id="viewAllBtn" data-view="all">全期間</button>
+      </div>
+
+      <div class="period-summary">
+        <div class="period-summary-value" id="periodSummaryValue">0分</div>
+        <div class="period-summary-label" id="periodSummaryLabel">今週の作業時間</div>
+      </div>
+
+      <div class="calendar-nav" id="calendarNav" style="display: none;">
+        <button class="icon-btn" id="calPrevBtn"><i class="fa-solid fa-chevron-left"></i></button>
+        <span id="calendarMonthTitle">2026年9月</span>
+        <button class="icon-btn" id="calNextBtn"><i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+
+      <div class="calendar-grid" id="calendarGrid"></div>
+
+      <div class="timeline-list" id="todayTimelineList" style="display: none;"></div>
+
+      <div class="detail-card" id="dayDetailBox">
+        <div style="font-weight: 600;" id="selectedDateTitle">日付を選択してください</div>
+        <div class="detail-hero">
+          <div class="detail-hero-value" id="detailWorkTime">0分</div>
+          <div class="detail-hero-label">作業累計</div>
+        </div>
+        <div class="detail-sub">セッション数 <b id="detailSessions">0</b></div>
+        <div class="detail-task-breakdown" id="detailTaskBreakdown"></div>
+      </div>
+
+      <div class="manual-add-box" id="manualAddBox" style="display: none;">
+        <div class="manual-add-label">記録漏れがあった場合、この日の作業時間を手動で追加できます</div>
+        <div class="manual-add-row">
+          <select id="manualAddTaskSelect"></select>
+          <input type="number" id="manualAddMinutesInput" min="1" placeholder="分">
+          <button id="manualAddSubmitBtn">追加</button>
+        </div>
+      </div>
+
+      <h4 style="font-size: 0.85rem; margin-bottom: 10px; color: var(--text-muted);" id="taskReportTitle">タスク別時間</h4>
+      <div class="task-report-list" id="taskReportList"></div>
+    </div>
+  </div>
+
+  <!-- タスク管理モーダル -->
+  <div class="modal-overlay" id="tasksModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>タスク管理</h3>
+        <button class="icon-btn" data-close-modal="tasksModal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="yt-input-group">
+        <input type="text" id="newTaskNameInput" placeholder="新規タスク名">
+        <button id="addNewTaskBtn">作成</button>
+      </div>
+
+      <h4 style="font-size: 0.85rem; color: var(--text-muted); margin: 15px 0 8px;">進行中のタスク</h4>
+      <ul class="task-manage-list" id="activeTaskManageList" style="max-height: 160px;"></ul>
+
+      <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+      <button class="completed-toggle-btn" id="toggleCompletedBtn">
+        <i class="fa-solid fa-folder"></i> 完了フォルダ (<span id="completedCount">0</span>)
+        <i class="fa-solid fa-chevron-down" id="completedToggleIcon"></i>
+      </button>
+      <ul class="task-manage-list" id="completedTaskList" style="display: none; max-height: 160px;"></ul>
+    </div>
+  </div>
+
+  <!-- 使い方・注意事項モーダル -->
+  <div class="modal-overlay" id="readmeModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>使い方・注意事項</h3>
+        <button class="icon-btn" data-close-modal="readmeModal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <ul class="readme-list">
+        <li><b>データの保存先</b>: 設定・タスク・記録はこのブラウザ内だけに保存されています。「Cookieとサイトデータ」の削除で消えます(単なるキャッシュ削除は無関係)。設定の「データのバックアップ」から時々エクスポートしてください。</li>
+        <li><b>ローカル音楽ファイル</b>: バックアップに音楽ファイル本体は含まれません(曲名のみ)。別環境に読み込んだ場合はBGM設定で選び直してください。</li>
+        <li><b>データのインポート</b>: 信頼できるバックアップファイルのみ読み込んでください。</li>
+        <li><b>YouTube再生</b>: 投稿者の設定・年齢制限・地域制限により、再生できない動画があります。</li>
+        <li><b>免責事項</b>: 本アプリの利用により生じたいかなる損害についても作者は責任を負いません。あらかじめご了承のうえご利用ください。</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- タイマー・タスク設定モーダル -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>設定</h3>
+        <button class="icon-btn" data-close-modal="settingsModal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">タイマー設定</h4>
+      <div class="setting-row"><label>作業時間 (分)</label><input type="number" id="workTimeInput" value="25" min="1"></div>
+      <div class="setting-row"><label>短休憩時間 (分)</label><input type="number" id="shortBreakInput" value="5" min="1"></div>
+      <div class="setting-row"><label>長休憩時間 (分)</label><input type="number" id="longBreakInput" value="0" min="0"></div>
+      <div class="setting-row"><label>長休憩の間隔 (ポモドーロ)</label><input type="number" id="longBreakIntervalInput" value="4" min="1"></div>
+      <div class="setting-row"><label>目標ポモドーロ数</label><input type="number" id="targetPomoInput" value="4" min="1"></div>
+      <div class="setting-row"><label>実行中は画面のスリープを防ぐ</label><input type="checkbox" id="wakeLockEnabledInput" checked></div>
+      <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 4px;">対応環境(HTTPS等)でのみ有効です。</p>
+
+      <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+      <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">自動開始</h4>
+      <div class="setting-row"><label>作業を自動的に開始する</label><input type="checkbox" id="autoStartWorkInput" checked></div>
+      <div class="setting-row"><label>短休憩を自動的に開始する</label><input type="checkbox" id="autoStartShortInput" checked></div>
+      <div class="setting-row"><label>長休憩を自動的に開始する</label><input type="checkbox" id="autoStartLongInput" checked></div>
+      <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 4px;">オフにした区間の直前で一時停止し、スタートボタンで手動再開します。</p>
+
+      <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+      <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">通知音</h4>
+      <div class="setting-row"><label>作業・休憩の終了時に音を鳴らす</label><input type="checkbox" id="notificationSoundInput"></div>
+      <div class="setting-row">
+        <label>通知音の音量</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="range" id="notificationVolumeInput" min="0" max="100" value="20" style="width: 110px; accent-color: var(--accent-work);">
+          <span id="notificationVolumeText" style="font-size: 0.75rem; color: var(--text-muted); width: 32px; text-align: right;">20%</span>
+        </div>
+      </div>
+      <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 4px;">BGMを鳴らさずに使う方向けの、控えめな電子音です。スライダーを動かすと実際の音量で試聴できます。</p>
+
+      <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+      <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">データのバックアップ</h4>
+      <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 8px;">端末のキャッシュ削除などに備えて、設定・タスク・記録をファイルに保存/読み込みできます。ローカル音楽ファイル(mp3等)の実体は保存されないため、必要な場合は読み込み後に再度追加してください。</p>
+      <div class="modal-footer" style="margin-top: 0;">
+        <button class="btn-full secondary" id="exportDataBtn"><i class="fa-solid fa-download"></i> エクスポート</button>
+        <button class="btn-full secondary" id="importTriggerBtn"><i class="fa-solid fa-upload"></i> インポート</button>
+      </div>
+      <input type="file" id="importFileInput" accept="application/json,.json" style="display: none;">
+
+      <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+      <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">データ管理</h4>
+      <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 8px;">作業記録は直近5年分のみ保持され、それより古い記録は自動的に削除されます。プレイリストはタブごとにローカル音源20曲・合計50曲、タスクは1000個までです。不要になった場合は、今すぐ全データを削除することもできます（元に戻せません）。</p>
+      <div class="modal-footer" style="margin-top: 0;">
+        <button class="btn-full secondary" id="deleteAllDataBtn" style="color: var(--accent-work);"><i class="fa-solid fa-trash"></i> 全データを削除</button>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-full secondary" id="resetDefaultsBtn">デフォルト設定</button>
+        <button class="btn-full" id="saveSettingsBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // タスク名・プレイリスト名など、ユーザー入力（インポートしたバックアップファイル経由を含む）に
+    // 由来する文字列をinnerHTMLへ挿入する前に必ず通す。エスケープを怠ると、悪意のあるバックアップ
+    // ファイルを読み込んだ際にスクリプトが実行される(XSS)おそれがあるため。
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    const DEFAULTS = {
+      workTime: 25, shortBreak: 5, longBreak: 0, interval: 4, targetPomo: 4,
+      autoStartWork: true, autoStartShortBreak: true, autoStartLongBreak: true,
+      notificationSound: false, notificationVolume: 20, wakeLockEnabled: true
+    };
+    let settings = { ...DEFAULTS };
+
+    let currentMode = 'work';
+    let activeTab = 'work';
+    let sourceType = 'youtube';
+
+    let timeLeft = settings.workTime * 60;
+    let totalTime = settings.workTime * 60;
+    let timerInterval = null;
+    let isRunning = false;
+    let pomoCount = 0;
+    let masterVolume = 0.8;
+
+    // タブのタイトルに残り時間を表示する際、末尾に付与する元のタイトル
+    const BASE_TITLE = document.title;
+
+    // 外側の円（目標ポモドーロセット全体）の半径・円周と、そのカウントアップ経過秒数
+    const OUTER_RING_RADIUS = 86;
+    const INNER_RING_RADIUS = 55;
+    const OUTER_CIRCUMFERENCE = 2 * Math.PI * OUTER_RING_RADIUS;
+    const INNER_CIRCUMFERENCE = 2 * Math.PI * INNER_RING_RADIUS;
+    let outerElapsedSeconds = 0;
+
+    // 目標ポモドーロセット全体の秒数（例: 作業25分＋短休憩5分 ×4回 なら2時間）
+    function getOuterTotalSeconds() {
+      const total = settings.targetPomo * (settings.workTime + settings.shortBreak) * 60;
+      return total > 0 ? total : 1; // ゼロ除算防止
+    }
+
+    // タスクオブジェクト配列 (status: 'active' = 進行中 / 'completed' = 完了フォルダ行き)
+    let tasks = [
+      { name: '勉強', status: 'active' },
+      { name: '仕事', status: 'active' },
+      { name: 'コーディング', status: 'active' }
+    ];
+    let selectedTask = '勉強';
+    let logs = {};
+
+    let playlists = {
+      work: { local: [], youtube: [] },
+      shortBreak: { local: [], youtube: [] },
+      longBreak: { local: [], youtube: [] }
+    };
+    let currentTrackIndex = { work: 0, shortBreak: 0, longBreak: 0 };
+    
+    let savedPositions = {
+      local: { work: 0, shortBreak: 0, longBreak: 0 },
+      youtube: { work: 0, shortBreak: 0, longBreak: 0 }
+    };
+
+    // 連続再生失敗をガードするカウンタ（無限ループ防止）
+    let skipAttempts = { work: 0, shortBreak: 0, longBreak: 0 };
+    const MAX_SKIP_ATTEMPTS = 6;
+
+    let localAudio = new Audio();
+    let ytPlayer = null;
+    let isYtReady = false;
+    let fadeInterval = null;
+    let isFadingOut = false;
+
+    // YouTube IFrame API の読み込み状態管理
+    let ytApiState = 'idle'; // idle | loading | ready | error
+    let ytApiRetries = 0;
+    const YT_API_MAX_RETRIES = 3;
+    const YT_API_TIMEOUT_MS = 8000;
+    let ytApiTimeoutHandle = null;
+    let pendingYtPlay = null; // 読み込み完了後に再生予約しておくトラック情報
+    let ytPendingVolumeFade = null; // PLAYING状態になった時点で音量を適用するための予約
+
+    // カレンダー表示月管理用
+    let calendarViewMode = 'month';
+    let currentCalDate = new Date();
+
+    // 現在進行中の作業セッションの開始時刻（今日タブのタイムライン表示用）
+    let workSessionStartTime = null;
+
+    // 手動追加フォームで対象になっている日付（"YYYY-MM-DD"）。日単位の表示でない時はnull
+    let manualAddTargetDate = null;
+
+    // タイマーのtick計算に使う直前の実時刻（バックグラウンド化やスリープでtickが
+    // 間引かれても、実際に経過した時間で正しく補正するために使う）
+    let lastTickTimestamp = null;
+
+    // 画面スリープ防止（Wake Lock）。HTTPS/localhost以外（file://など）では
+    // 取得に失敗するが、その場合は何もせず無視する
+    let wakeLockSentinel = null;
+
+    // ============================================================
+    // IndexedDB: アプリの全データ（設定・タスク・作業記録・プレイリスト・
+    // ローカル音源の実体）をここに一本化して保存する。
+    // 以前は設定/タスク/記録/プレイリストをlocalStorageに保存していたが、
+    // localStorageは5〜10MB程度という小さな上限で頭打ちになり、かつ上限到達時に
+    // 保存がエラーになる（気づきにくい）ため、音源ファイルと同じIndexedDBに統一した。
+    // ============================================================
+    const DB_NAME = 'pomoAppDB';
+    const DB_VERSION = 2;
+    const STORE_AUDIO = 'audioFiles';
+    const STORE_KV = 'kv';
+    let dbPromise = null;
+
+    function openAppDB() {
+      if (dbPromise) return dbPromise;
+      dbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(STORE_AUDIO)) {
+            db.createObjectStore(STORE_AUDIO);
+          }
+          if (!db.objectStoreNames.contains(STORE_KV)) {
+            db.createObjectStore(STORE_KV);
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      return dbPromise;
+    }
+
+    async function saveAudioFile(id, file) {
+      const db = await openAppDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_AUDIO, 'readwrite');
+        tx.objectStore(STORE_AUDIO).put(file, id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function getAudioFile(id) {
+      const db = await openAppDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_AUDIO, 'readonly');
+        const req = tx.objectStore(STORE_AUDIO).get(id);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function deleteAudioFile(id) {
+      const db = await openAppDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_AUDIO, 'readwrite');
+        tx.objectStore(STORE_AUDIO).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // audioFilesストアに実際に保存済みの全キー（曲ID）一覧を取得する。
+    // インポート後、どのプレイリストからも参照されなくなった孤児データの掃除に使う
+    async function getAllAudioFileIds() {
+      const db = await openAppDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_AUDIO, 'readonly');
+        const req = tx.objectStore(STORE_AUDIO).getAllKeys();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function clearAudioFiles() {
+      const db = await openAppDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_AUDIO, 'readwrite');
+        tx.objectStore(STORE_AUDIO).clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // --- 汎用キー・バリューストア（設定・タスク・作業記録・プレイリスト用） ---
+    async function kvGet(key) {
+      const db = await openAppDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_KV, 'readonly');
+        const req = tx.objectStore(STORE_KV).get(key);
+        req.onsuccess = () => resolve(req.result !== undefined ? req.result : null);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function kvSet(key, value) {
+      const db = await openAppDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_KV, 'readwrite');
+        tx.objectStore(STORE_KV).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function clearKv() {
+      const db = await openAppDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_KV, 'readwrite');
+        tx.objectStore(STORE_KV).clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // このセッション内で一度解決した Blob URL をキャッシュしつつ、
+    // 未解決なら IndexedDB からファイルを取り出して URL を発行する
+    async function resolveLocalTrackUrl(track) {
+      if (track.url) return track.url;
+      if (!track.id) return null;
+      try {
+        const file = await getAudioFile(track.id);
+        if (!file) return null;
+        const url = URL.createObjectURL(file);
+        track.url = url;
+        return url;
+      } catch (e) {
+        console.warn('音楽ファイルの読み込みに失敗しました', e);
+        return null;
+      }
+    }
+
+    // ============================================================
+    // データの上限（無制限に肥大化するのを防ぐための上限値）
+    // ============================================================
+    const LOG_RETENTION_YEARS = 5;
+    const MAX_TASKS = 1000;
+    const MAX_LOCAL_TRACKS_PER_MODE = 20;
+    const MAX_PLAYLIST_TRACKS_PER_MODE = 50;
+
+    // 保持期間(5年)より古い日付の作業記録を削除する
+    function pruneOldLogs() {
+      const cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - LOG_RETENTION_YEARS);
+      const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+      Object.keys(logs).forEach(key => {
+        if (key < cutoffKey) delete logs[key];
+      });
+    }
+
+    // 完了フォルダのタスクのうち、作業記録(logs)からも実績が完全に無くなったものを削除する
+    // （進行中のタスクは実績が無くても削除しない。ログ側の保持期間切れで実績が消えた場合にも働く）
+    function pruneOrphanedCompletedTasks() {
+      const usedNames = new Set();
+      Object.values(logs).forEach(log => {
+        Object.keys(log.taskTime || {}).forEach(name => {
+          if ((log.taskTime[name] || 0) > 0) usedNames.add(name);
+        });
+      });
+      tasks = tasks.filter(t => t.status !== 'completed' || usedNames.has(t.name));
+    }
+
+    // --- ストレージ読み込み・保存 ---
+    async function loadStorageData() {
+      const savedSettings = await kvGet('settings');
+      if (savedSettings) {
+        // 過去に保存された設定に自動開始のキーがない場合はデフォルト(true)で補う
+        settings = { ...DEFAULTS, ...savedSettings };
+      }
+      document.getElementById('workTimeInput').value = settings.workTime;
+      document.getElementById('shortBreakInput').value = settings.shortBreak;
+      document.getElementById('longBreakInput').value = settings.longBreak;
+      document.getElementById('longBreakIntervalInput').value = settings.interval;
+      document.getElementById('targetPomoInput').value = settings.targetPomo;
+      document.getElementById('wakeLockEnabledInput').checked = settings.wakeLockEnabled;
+      document.getElementById('autoStartWorkInput').checked = settings.autoStartWork;
+      document.getElementById('autoStartShortInput').checked = settings.autoStartShortBreak;
+      document.getElementById('autoStartLongInput').checked = settings.autoStartLongBreak;
+      document.getElementById('notificationSoundInput').checked = settings.notificationSound;
+      document.getElementById('notificationVolumeInput').value = settings.notificationVolume;
+      document.getElementById('notificationVolumeText').textContent = `${settings.notificationVolume}%`;
+
+      const savedPlaylists = await kvGet('playlists');
+      if (savedPlaylists) {
+        for (const mode of Object.keys(playlists)) {
+          if (savedPlaylists[mode]) {
+            // id を持たない古い形式（blob URLのみ）のローカル曲はもう再生不可能なため除外する
+            playlists[mode].local = (savedPlaylists[mode].local || []).filter(t => t && t.id);
+            playlists[mode].youtube = savedPlaylists[mode].youtube || [];
+          }
+        }
+      }
+
+      const savedTasks = await kvGet('tasks');
+      if (savedTasks) {
+        tasks = savedTasks.map(t => {
+          // 古い文字列配列データとの互換性保持
+          if (typeof t === 'string') return { name: t, status: 'active' };
+          // 新形式（status）は既に対応済みなのでそのまま使う
+          if (t.status) return { name: t.name, status: t.status };
+          // 旧形式（active: true/false）からの移行。false だったものは完了フォルダへ
+          return { name: t.name, status: t.active ? 'active' : 'completed' };
+        });
+      }
+
+      const savedLogs = await kvGet('logs');
+      if (savedLogs) logs = savedLogs;
+
+      // 上限を超えているデータを整理する（記録の保持期間切れ／実績が消えた完了タスク／件数上限）
+      pruneOldLogs();
+      pruneOrphanedCompletedTasks();
+      if (tasks.length > MAX_TASKS) tasks = tasks.slice(0, MAX_TASKS);
+
+      const activeTasks = tasks.filter(t => t.status === 'active');
+      if (activeTasks.length > 0) {
+        selectedTask = activeTasks[0].name;
+      }
+
+      await saveStorageData();
+    }
+
+    async function saveStorageData() {
+      try {
+        // Blob URL はセッションをまたいで無効になるため保存しない（id のみ保存）
+        const serializablePlaylists = {};
+        for (const mode of Object.keys(playlists)) {
+          serializablePlaylists[mode] = {
+            local: playlists[mode].local.map(t => ({ title: t.title, id: t.id })),
+            youtube: playlists[mode].youtube
+          };
+        }
+
+        await Promise.all([
+          kvSet('settings', settings),
+          kvSet('playlists', serializablePlaylists),
+          kvSet('tasks', tasks),
+          kvSet('logs', logs)
+        ]);
+      } catch (e) {
+        console.warn('データの保存に失敗しました', e);
+      }
+    }
+
+    // 全データを削除する（設定モーダルの「全データを削除」ボタンから呼ばれる）。
+    // 自分専用のIndexedDBデータベース(DB_NAME)の中身だけを消すため、
+    // 他のサイト・他のアプリのデータや、ブラウザの他の保存領域には一切触れない。
+    async function deleteAllData() {
+      const ok = confirm(
+        '設定・タスク・作業記録・BGMプレイリスト・保存済みの音楽ファイルなど、\n' +
+        'このアプリのデータを全て削除します。この操作は取り消せません。\n\n本当によろしいですか？'
+      );
+      if (!ok) return;
+
+      try {
+        await clearKv();
+        await clearAudioFiles();
+      } catch (e) {
+        console.warn('データの削除に失敗しました', e);
+        alert('データの削除中にエラーが発生しました。');
+        return;
+      }
+
+      alert('全データを削除しました。ページを再読み込みします。');
+      location.reload();
+    }
+
+    // ============================================================
+    // データのエクスポート・インポート
+    // （端末のキャッシュ削除などでIndexedDBが消えた場合の備え。
+    //  ローカル音楽ファイルの実体（IndexedDB内のBlob）はファイルに含めない）
+    // ============================================================
+    function formatBackupTimestamp(d) {
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+    }
+
+    async function exportData() {
+      const data = {
+        appVersion: 1,
+        exportedAt: new Date().toISOString(),
+        settings: (await kvGet('settings')) || settings,
+        playlists: (await kvGet('playlists')) || {},
+        tasks: (await kvGet('tasks')) || tasks,
+        logs: (await kvGet('logs')) || logs
+      };
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pomodoro_backup_${formatBackupTimestamp(new Date())}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    async function handleImportFile(e) {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+
+      let data;
+      try {
+        const text = await file.text();
+        data = JSON.parse(text);
+        if (!data || typeof data !== 'object') throw new Error('invalid format');
+      } catch (err) {
+        console.warn('バックアップファイルの読み込みに失敗しました', err);
+        alert('ファイルの読み込みに失敗しました。正しいバックアップファイル(.json)か確認してください。');
+        return;
+      }
+
+      if (!confirm('現在保存されているデータを、選択したファイルの内容で上書きします。よろしいですか？')) return;
+
+      if (data.settings) await kvSet('settings', data.settings);
+      if (data.playlists) await kvSet('playlists', data.playlists);
+      if (data.tasks) await kvSet('tasks', data.tasks);
+      if (data.logs) await kvSet('logs', data.logs);
+
+      // 読み込んだデータで画面全体を作り直す
+      await loadStorageData();
+      timeLeft = settings.workTime * 60;
+      totalTime = settings.workTime * 60;
+      document.getElementById('targetPomoDisplay').textContent = settings.targetPomo;
+      updateTimerUI();
+      updateModeTheme();
+      renderTaskDropdown();
+      renderActiveTaskManageList();
+      renderCompletedTaskList();
+      renderPlaylists();
+
+      // バックアップには音楽ファイルの実体が含まれないため、インポート直後は
+      // 旧プレイリストが参照していたローカル音源の実体がIndexedDBに孤児として残る。
+      // どのプレイリストからも参照されなくなったものをここで掃除する
+      // （自分のaudioFilesストアだけを対象にしており、他のデータには触れない）
+      await cleanupOrphanedAudioFiles();
+
+      const missingTitles = await findMissingLocalAudioTitles();
+      if (missingTitles.length > 0) {
+        alert(
+          '以下のローカル音楽ファイルは、この端末には保存されていないため再読み込みが必要です:\n\n' +
+          missingTitles.map(t => '・' + t).join('\n') +
+          '\n\n設定内のBGM設定から、同じファイルを選び直してください。'
+        );
+      } else {
+        alert('データを読み込みました。');
+      }
+    }
+
+    // プレイリストのどこからも参照されていない、IndexedDB内の孤児音楽ファイルを削除する。
+    // 自分のaudioFilesストアの中身を、現在のplaylistsが参照するidと突き合わせるだけなので、
+    // 他のサイトのデータはもちろん、このアプリの他のデータ(kvストア)にも一切触れない。
+    async function cleanupOrphanedAudioFiles() {
+      const referenced = new Set();
+      for (const mode of Object.keys(playlists)) {
+        (playlists[mode].local || []).forEach(t => { if (t && t.id) referenced.add(t.id); });
+      }
+      let allIds;
+      try {
+        allIds = await getAllAudioFileIds();
+      } catch (e) {
+        console.warn('音楽ファイル一覧の取得に失敗しました', e);
+        return;
+      }
+      for (const id of allIds) {
+        if (!referenced.has(id)) {
+          try { await deleteAudioFile(id); } catch (e) { console.warn(e); }
+        }
+      }
+    }
+
+    // インポート後のプレイリストを確認し、IndexedDBに実体が無いローカル音源のタイトル一覧を返す
+    async function findMissingLocalAudioTitles() {
+      const missing = new Set();
+      for (const mode of Object.keys(playlists)) {
+        const localList = playlists[mode].local || [];
+        for (const track of localList) {
+          if (!track.id) continue;
+          try {
+            const file = await getAudioFile(track.id);
+            if (!file) missing.add(track.title);
+          } catch (err) {
+            missing.add(track.title);
+          }
+        }
+      }
+      return Array.from(missing);
+    }
+
+    // ============================================================
+    // YouTube IFrame API: リトライ・タイムアウト付きの読み込み
+    // ============================================================
+    function ensureYoutubeApiLoaded() {
+      if (ytApiState === 'ready' || ytApiState === 'loading') return;
+      ytApiRetries = 0;
+      loadYoutubeApiScript();
+    }
+
+    function loadYoutubeApiScript() {
+      ytApiState = 'loading';
+      showYtStatus('YouTube プレイヤーを準備中…');
+
+      const existing = document.getElementById('ytApiScript');
+      if (existing) existing.remove();
+
+      const script = document.createElement('script');
+      script.id = 'ytApiScript';
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.onerror = onYtApiLoadFailure;
+      document.head.appendChild(script);
+
+      clearTimeout(ytApiTimeoutHandle);
+      ytApiTimeoutHandle = setTimeout(() => {
+        if (ytApiState !== 'ready') onYtApiLoadFailure();
+      }, YT_API_TIMEOUT_MS);
+    }
+
+    function onYtApiLoadFailure() {
+      if (ytApiState === 'ready') return;
+      clearTimeout(ytApiTimeoutHandle);
+      ytApiRetries++;
+      if (ytApiRetries <= YT_API_MAX_RETRIES) {
+        console.warn(`YouTube APIの読み込みに失敗。再試行します (${ytApiRetries}/${YT_API_MAX_RETRIES})`);
+        setTimeout(loadYoutubeApiScript, 1500);
+      } else {
+        ytApiState = 'error';
+        showYtStatus('YouTubeの読み込みに失敗しました', true);
+      }
+    }
+
+    function retryYoutubeLoad() {
+      ytApiRetries = 0;
+      loadYoutubeApiScript();
+    }
+
+    // YouTube IFrame API から呼ばれるグローバルコールバック
+    function onYouTubeIframeAPIReady() {
+      clearTimeout(ytApiTimeoutHandle);
+
+      // リトライ処理により、まれに読み込みが二重に成功してこのコールバックが
+      // 2回呼ばれることがある。プレイヤーを二重生成すると、画面に表示されている
+      // プレイヤーと実際に操作しているプレイヤーがズレてしまう（ミュート固着の原因）
+      // ため、既に生成済みなら状態更新のみ行い、再生成はしない。
+      if (ytPlayer) {
+        isYtReady = true;
+        ytApiState = 'ready';
+        hideYtStatus();
+        if (pendingYtPlay) {
+          const p = pendingYtPlay;
+          pendingYtPlay = null;
+          playYoutubeTrack(p.track, p.startSeconds, p.fadeInMs);
+        }
+        return;
+      }
+
+      ytPlayer = new YT.Player('ytPlayerHolder', {
+        height: '100%', width: '100%',
+        playerVars: { 'rel': 0, 'modestbranding': 1 },
+        events: {
+          'onReady': () => {
+            isYtReady = true;
+            ytApiState = 'ready';
+            hideYtStatus();
+            if (pendingYtPlay) {
+              const p = pendingYtPlay;
+              pendingYtPlay = null;
+              playYoutubeTrack(p.track, p.startSeconds, p.fadeInMs);
+            }
+          },
+          'onStateChange': (e) => {
+            // loadVideoById直後はJS↔iframeの通信チャンネルがまだ確立していないことがあり、
+            // その状態でsetVolume等を送ると届かないことがある。実際にPLAYING状態になった
+            // （＝通信が成立した）タイミングで音量を適用することで確実に反映させる。
+            if (e.data === YT.PlayerState.PLAYING && ytPendingVolumeFade) {
+              const { fadeInMs } = ytPendingVolumeFade;
+              ytPendingVolumeFade = null;
+              if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
+              if (fadeInMs) {
+                ytPlayer.setVolume(0);
+                fadeYoutubeVolumeTo(masterVolume * 100, fadeInMs);
+              } else {
+                ytPlayer.setVolume(masterVolume * 100);
+              }
+            }
+            if (e.data === YT.PlayerState.ENDED) playNextTrack();
+          },
+          'onError': (e) => {
+            console.warn('YouTube再生エラー。次のトラックへ移ります', e.data);
+            ytPendingVolumeFade = null;
+            playNextTrack();
+          }
+        }
+      });
+    }
+
+    function showYtStatus(msg, showRetryBtn = false) {
+      const el = document.getElementById('ytStatusMsg');
+      if (!el) return;
+      el.style.display = 'flex';
+      el.textContent = '';
+
+      const span = document.createElement('span');
+      span.textContent = msg;
+      el.appendChild(span);
+
+      if (showRetryBtn) {
+        const btn = document.createElement('button');
+        btn.textContent = '再試行';
+        btn.addEventListener('click', retryYoutubeLoad);
+        el.appendChild(btn);
+      }
+    }
+
+    function hideYtStatus() {
+      const el = document.getElementById('ytStatusMsg');
+      if (el) el.style.display = 'none';
+    }
+
+    // --- 初期化 ---
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadStorageData();
+
+      timeLeft = settings.workTime * 60;
+      totalTime = settings.workTime * 60;
+      document.getElementById('targetPomoDisplay').textContent = settings.targetPomo;
+
+      renderTaskDropdown();
+      renderActiveTaskManageList();
+      renderCompletedTaskList();
+      updateTimerUI();
+      updateModeTheme();
+      renderPlaylists();
+
+      // YouTube APIは先読みしておく（再生時に毎回待たされないように）。
+      // 失敗してもリトライ・タイムアウト処理があるので固まらない。
+      ensureYoutubeApiLoaded();
+
+      document.getElementById('startPauseBtn').addEventListener('click', toggleTimer);
+
+      document.getElementById('openSettingsBtn').addEventListener('click', () => openModal('settingsModal'));
+      document.getElementById('openAnalyticsBtn').addEventListener('click', () => {
+        openModal('analyticsModal');
+        renderCalendar();
+      });
+      document.getElementById('openTasksBtn').addEventListener('click', () => {
+        openModal('tasksModal');
+        renderActiveTaskManageList();
+        renderCompletedTaskList();
+      });
+      document.getElementById('openReadmeBtn').addEventListener('click', () => openModal('readmeModal'));
+
+      // モーダルの閉じるボタン（×）はすべて data-close-modal に対象モーダルのidを持たせている
+      document.querySelectorAll('[data-close-modal]').forEach(btn => {
+        btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
+      });
+
+      document.getElementById('activeTaskSelect').addEventListener('change', onTaskChange);
+      document.getElementById('bgmCollapseToggleBtn').addEventListener('click', toggleBgmCollapse);
+
+      document.querySelectorAll('#sourceSelectorArea .source-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchSourceType(btn.dataset.sourceType));
+      });
+      document.querySelectorAll('#bgmTabsArea .bgm-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchModeTab(btn.dataset.mode));
+      });
+
+      const fileDropArea = document.getElementById('fileDropArea');
+      const audioFileInput = document.getElementById('audioFileInput');
+      fileDropArea.addEventListener('click', () => audioFileInput.click());
+      audioFileInput.addEventListener('change', handleFileSelect);
+
+      document.getElementById('addYtBtn').addEventListener('click', addYoutubeTrack);
+      document.querySelectorAll('.preset-chip').forEach(btn => {
+        btn.addEventListener('click', () => loadPreset(btn.dataset.ytId, btn.dataset.ytTitle));
+      });
+
+      document.querySelectorAll('.view-toggle button[data-view]').forEach(btn => {
+        btn.addEventListener('click', () => setCalendarView(btn.dataset.view));
+      });
+      document.getElementById('calPrevBtn').addEventListener('click', () => changeCalPeriod(-1));
+      document.getElementById('calNextBtn').addEventListener('click', () => changeCalPeriod(1));
+      document.getElementById('manualAddSubmitBtn').addEventListener('click', submitManualAdd);
+
+      document.getElementById('addNewTaskBtn').addEventListener('click', addNewTask);
+      document.getElementById('toggleCompletedBtn').addEventListener('click', toggleCompletedFolder);
+
+      document.getElementById('exportDataBtn').addEventListener('click', exportData);
+      const importFileInput = document.getElementById('importFileInput');
+      document.getElementById('importTriggerBtn').addEventListener('click', () => importFileInput.click());
+      importFileInput.addEventListener('change', handleImportFile);
+
+      document.getElementById('deleteAllDataBtn').addEventListener('click', deleteAllData);
+      document.getElementById('resetDefaultsBtn').addEventListener('click', resetToDefaults);
+      document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+
+      // 通知音の音量スライダー：動かすと少し間を置いてから実際の音量で試聴する
+      let notifyTestTimeout = null;
+      const notifyVolSlider = document.getElementById('notificationVolumeInput');
+      notifyVolSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById('notificationVolumeText').textContent = `${val}%`;
+        clearTimeout(notifyTestTimeout);
+        notifyTestTimeout = setTimeout(() => playNotificationSound(val), 120);
+      });
+
+      const volSlider = document.getElementById('masterVolume');
+      volSlider.addEventListener('input', (e) => {
+        const val = e.target.value;
+        masterVolume = val / 100;
+        document.getElementById('volumeValText').textContent = `${val}%`;
+        if (!fadeInterval) {
+          localAudio.volume = masterVolume;
+          if (ytPlayer && isYtReady && typeof ytPlayer.setVolume === 'function') {
+            ytPlayer.setVolume(val);
+          }
+        }
+      });
+
+      const seekSlider = document.getElementById('seekSlider');
+      localAudio.addEventListener('timeupdate', () => {
+        if (localAudio.duration) {
+          seekSlider.value = (localAudio.currentTime / localAudio.duration) * 100;
+          document.getElementById('currentTimeText').textContent = formatTime(localAudio.currentTime);
+        }
+      });
+      localAudio.addEventListener('loadedmetadata', () => {
+        document.getElementById('durationText').textContent = formatTime(localAudio.duration);
+      });
+      seekSlider.addEventListener('input', (e) => {
+        if (localAudio.duration) {
+          const seekTo = (e.target.value / 100) * localAudio.duration;
+          localAudio.currentTime = seekTo;
+          savedPositions.local[currentMode] = seekTo;
+        }
+      });
+      localAudio.addEventListener('ended', () => {
+        savedPositions.local[currentMode] = 0;
+        playNextTrack();
+      });
+      // 再生開始に成功したらスキップカウンタをリセット
+      localAudio.addEventListener('playing', () => {
+        skipAttempts[currentMode] = 0;
+      });
+      // 読み込み・再生エラー時は自動的に次のトラックへ（無限に無音のまま止まらないように）
+      localAudio.addEventListener('error', () => {
+        console.warn('ローカル音源の読み込みに失敗しました。次のトラックへ移ります');
+        handlePlaybackFailure();
+      });
+    });
+
+    function formatTime(sec) {
+      if (isNaN(sec)) return "00:00";
+      const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function getTodayKey() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    // --- 通知音（BGMを使わない人向けの控えめな電子音） ---
+    let notifyAudioCtx = null;
+
+    function getNotifyAudioCtx() {
+      if (!notifyAudioCtx) {
+        notifyAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (notifyAudioCtx.state === 'suspended') notifyAudioCtx.resume();
+      return notifyAudioCtx;
+    }
+
+    // ベルのような、驚かない程度の短い2音を鳴らす
+    // volumePercent を省略すると設定値(settings.notificationVolume)を使う（設定画面での試聴時は明示的に渡す）
+    // 音量20%で旧デフォルト(50%)相当の音量になり、100%まで上げるとさらに大きく鳴るようにしている
+    function playNotificationSound(volumePercent) {
+      try {
+        const vol = (typeof volumePercent === 'number' ? volumePercent : settings.notificationVolume) / 100;
+        if (vol <= 0) return;
+        const ctx = getNotifyAudioCtx();
+        const now = ctx.currentTime;
+        const peak = 0.875 * vol;
+        [880, 1320].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const start = now + i * 0.14;
+          gain.gain.setValueAtTime(0, start);
+          gain.gain.linearRampToValueAtTime(peak, start + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(start);
+          osc.stop(start + 0.4);
+        });
+      } catch (e) {
+        console.warn('通知音の再生に失敗しました', e);
+      }
+    }
+
+    // --- ロック制御 ---
+    function updateEditLockUI() {
+      const lockList = [
+        document.getElementById('bgmTabsArea'), document.getElementById('sourceSelectorArea'),
+        document.getElementById('fileDropArea'), document.getElementById('ytInputArea'),
+        document.getElementById('ytPresetsArea'), document.getElementById('activeTaskSelect'),
+        // 作業中・休憩中はモーダルを開けないようにする。
+        // これにより、モーダルのオーバーレイが再生中のYouTubeプレイヤーを覆う状況自体が起こらなくなる
+        document.getElementById('openAnalyticsBtn'), document.getElementById('openTasksBtn'),
+        document.getElementById('openSettingsBtn'), document.getElementById('openReadmeBtn')
+      ];
+      lockList.forEach(el => {
+        if (el) isRunning ? el.classList.add('disabled-control') : el.classList.remove('disabled-control');
+      });
+      renderPlaylists();
+    }
+
+    // --- 画面スリープ防止（Wake Lock） ---
+    // HTTPS/localhost以外（file://で直接開いている場合など）では取得に失敗するが、
+    // その場合は何もせず無視する（タイマー自体の動作には影響しない）
+    async function acquireWakeLock() {
+      if (!('wakeLock' in navigator)) return;
+      try {
+        wakeLockSentinel = await navigator.wakeLock.request('screen');
+        wakeLockSentinel.addEventListener('release', () => { wakeLockSentinel = null; });
+      } catch (e) {
+        console.warn('画面スリープ防止を有効にできませんでした（file://で開いている場合は仕様です）', e);
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLockSentinel) {
+        wakeLockSentinel.release().catch(() => {});
+        wakeLockSentinel = null;
+      }
+    }
+
+    // --- タイマー処理 ---
+    function toggleTimer() { isRunning ? pauseTimer() : startTimer(); }
+
+    function startTimer() {
+      const wasPaused = (timeLeft < totalTime && timeLeft > 0);
+      isRunning = true;
+      isFadingOut = false;
+      document.getElementById('playIcon').className = 'fa-solid fa-pause';
+      updateEditLockUI();
+      updateTimerUI();
+      if (settings.wakeLockEnabled) acquireWakeLock();
+
+      // 一時停止からの再開では開始時刻を保持し、新規セッションの場合のみ記録する
+      if (currentMode === 'work' && workSessionStartTime === null) {
+        workSessionStartTime = Date.now();
+      }
+
+      if (wasPaused) {
+        playBgmDirect();
+      } else {
+        playBgmWithFadeIn(1000);
+      }
+
+      // タブのバックグラウンド化やスリープでtickが間引かれても、実際に経過した
+      // 実時間（Date.now()の差分）で残り時間を計算するため、tick回数には依存しない
+      lastTickTimestamp = Date.now();
+      timerInterval = setInterval(() => {
+        const now = Date.now();
+        const deltaSec = (now - lastTickTimestamp) / 1000;
+        lastTickTimestamp = now;
+
+        timeLeft -= deltaSec;
+
+        // 外側の円（目標セット全体）の経過秒数も同じ実時間差分で進め、1周したら繰り越す
+        outerElapsedSeconds += deltaSec;
+        const outerTotal = getOuterTotalSeconds();
+        outerElapsedSeconds = outerElapsedSeconds % outerTotal;
+
+        updateTimerUI();
+
+        if (timeLeft <= 5 && !isFadingOut) {
+          isFadingOut = true;
+          fadeOutBgm(5000);
+        }
+
+        if (timeLeft <= 0) handleTimerCompletion();
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      isRunning = false;
+      document.getElementById('playIcon').className = 'fa-solid fa-play';
+      clearInterval(timerInterval);
+      updateEditLockUI();
+      updateTimerUI();
+      saveCurrentPosition();
+      pauseBgmDirect();
+      releaseWakeLock();
+    }
+
+    function handleTimerCompletion() {
+      clearInterval(timerInterval);
+      if (settings.notificationSound) playNotificationSound();
+      const today = getTodayKey();
+      if (!logs[today]) logs[today] = { sessions: 0, workMinutes: 0, shortBreaks: 0, longBreaks: 0, taskTime: {}, taskSessions: {}, entries: [] };
+      if (!logs[today].entries) logs[today].entries = [];
+      if (!logs[today].taskSessions) logs[today].taskSessions = {};
+
+      let nextMode = currentMode;
+      if (currentMode === 'work') {
+        pomoCount++;
+        document.getElementById('currentPomo').textContent = pomoCount;
+
+        logs[today].sessions += 1;
+        logs[today].workMinutes += settings.workTime;
+        logs[today].taskTime[selectedTask] = (logs[today].taskTime[selectedTask] || 0) + settings.workTime;
+        logs[today].taskSessions[selectedTask] = (logs[today].taskSessions[selectedTask] || 0) + 1;
+
+        const sessionEnd = Date.now();
+        const sessionStart = workSessionStartTime || (sessionEnd - settings.workTime * 60000);
+        logs[today].entries.push({ task: selectedTask, start: sessionStart, end: sessionEnd });
+        workSessionStartTime = null;
+
+        saveStorageData();
+
+        if (pomoCount % settings.interval === 0) {
+          nextMode = 'longBreak';
+          totalTime = settings.longBreak * 60;
+        } else {
+          nextMode = 'shortBreak';
+          totalTime = settings.shortBreak * 60;
+        }
+      } else {
+        if (currentMode === 'shortBreak') logs[today].shortBreaks += 1;
+        if (currentMode === 'longBreak') logs[today].longBreaks += 1;
+        saveStorageData();
+        nextMode = 'work';
+        totalTime = settings.workTime * 60;
+      }
+
+      currentMode = nextMode;
+      activeTab = nextMode;
+      
+      document.querySelectorAll('.bgm-tab-btn').forEach((btn, idx) => {
+        btn.classList.toggle('active', (idx===0&&nextMode==='work')||(idx===1&&nextMode==='shortBreak')||(idx===2&&nextMode==='longBreak'));
+      });
+
+      timeLeft = totalTime;
+      updateModeTheme();
+      updateTimerUI();
+
+      // 次のセッションが自動開始の対象かどうかを設定から判定する
+      const shouldAutoStart =
+        nextMode === 'work' ? settings.autoStartWork :
+        nextMode === 'shortBreak' ? settings.autoStartShortBreak :
+        settings.autoStartLongBreak;
+
+      if (shouldAutoStart) {
+        startTimer();
+      } else {
+        // 自動開始しない設定の場合は、ここで一度止めてスタートボタンでの手動再開を待つ
+        isRunning = false;
+        document.getElementById('playIcon').className = 'fa-solid fa-play';
+        updateEditLockUI();
+        releaseWakeLock();
+      }
+    }
+
+    function updateTimerUI() {
+      // timeLeftは実時間差分で減算するため小数を含みうる。表示用に丸める
+      const displaySec = Math.max(0, Math.round(timeLeft));
+      const mins = Math.floor(displaySec / 60), secs = displaySec % 60;
+      const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      document.getElementById('timeMinutesText').textContent = String(mins).padStart(2, '0');
+      document.getElementById('timeSecondsText').textContent = `:${String(secs).padStart(2, '0')}`;
+
+      // タブのタイトルにも残り時間を表示し、他のタブを見ていても分かるようにする
+      document.title = `${timeStr} - ${BASE_TITLE}`;
+
+      // 内側の円: 現在のセッション（作業/休憩）の経過を「増えていく」向きで描画
+      const innerElapsed = totalTime > 0 ? Math.min(totalTime, Math.max(0, totalTime - timeLeft)) : 0;
+      const innerFraction = totalTime > 0 ? innerElapsed / totalTime : 0;
+      document.getElementById('innerProgressCircle').style.strokeDashoffset = INNER_CIRCUMFERENCE * (1 - innerFraction);
+      document.getElementById('innerElapsedLabel').textContent = formatTime(innerElapsed);
+
+      // 外側の円: 目標ポモドーロセット全体の経過
+      const outerTotal = getOuterTotalSeconds();
+      const outerFraction = Math.min(1, outerElapsedSeconds / outerTotal);
+      document.getElementById('outerProgressCircle').style.strokeDashoffset = OUTER_CIRCUMFERENCE * (1 - outerFraction);
+      document.getElementById('outerElapsedLabel').textContent = formatTime(outerElapsedSeconds);
+    }
+
+    function updateModeTheme() {
+      const root = document.documentElement;
+      const label = document.getElementById('modeLabel');
+      if (currentMode === 'work') {
+        root.style.setProperty('--current-accent', 'var(--accent-work)');
+        label.textContent = '作業中';
+      } else if (currentMode === 'shortBreak') {
+        root.style.setProperty('--current-accent', 'var(--accent-short)');
+        label.textContent = '短休憩中';
+      } else {
+        root.style.setProperty('--current-accent', 'var(--accent-long)');
+        label.textContent = '長休憩中';
+      }
+    }
+
+    // --- 音源再生・フェード処理 ---
+    function saveCurrentPosition() {
+      if (sourceType === 'local') {
+        savedPositions.local[currentMode] = localAudio.currentTime;
+      } else if (sourceType === 'youtube' && ytPlayer && isYtReady && typeof ytPlayer.getCurrentTime === 'function') {
+        savedPositions.youtube[currentMode] = ytPlayer.getCurrentTime();
+      }
+    }
+
+    // 再生に失敗した場合、無限ループしない範囲で自動的に次の曲へスキップする
+    function handlePlaybackFailure() {
+      skipAttempts[currentMode] = (skipAttempts[currentMode] || 0) + 1;
+      if (skipAttempts[currentMode] > MAX_SKIP_ATTEMPTS) {
+        console.warn('再生可能なトラックが見つかりません。BGM再生を停止します。');
+        return;
+      }
+      if (isRunning) playNextTrack();
+    }
+
+    async function playBgmDirect() {
+      if (fadeInterval) clearInterval(fadeInterval);
+      const list = playlists[currentMode][sourceType];
+      if (!list || list.length === 0) return;
+
+      const idx = currentTrackIndex[currentMode] % list.length;
+      const track = list[idx];
+
+      if (sourceType === 'local') {
+        if (ytPlayer && isYtReady && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+
+        const url = await resolveLocalTrackUrl(track);
+        if (!url) { handlePlaybackFailure(); return; }
+
+        if (localAudio.src !== url) {
+          localAudio.src = url;
+          localAudio.currentTime = savedPositions.local[currentMode] || 0;
+        }
+        localAudio.volume = masterVolume;
+        localAudio.play().catch(() => handlePlaybackFailure());
+
+      } else if (sourceType === 'youtube') {
+        localAudio.pause();
+        playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, 0);
+      }
+    }
+
+    async function playBgmWithFadeIn(durationMs = 1000) {
+      if (fadeInterval) clearInterval(fadeInterval);
+      const list = playlists[currentMode][sourceType];
+      if (!list || list.length === 0) return;
+
+      const idx = currentTrackIndex[currentMode] % list.length;
+      const track = list[idx];
+
+      if (sourceType === 'local') {
+        if (ytPlayer && isYtReady && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+
+        const url = await resolveLocalTrackUrl(track);
+        if (!url) { handlePlaybackFailure(); return; }
+
+        if (localAudio.src !== url) {
+          localAudio.src = url;
+          localAudio.currentTime = savedPositions.local[currentMode] || 0;
+        }
+
+        localAudio.volume = 0;
+        localAudio.play().then(() => {
+          fadeLocalVolumeTo(masterVolume, durationMs);
+        }).catch(() => handlePlaybackFailure());
+
+      } else if (sourceType === 'youtube') {
+        localAudio.pause();
+        playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, durationMs);
+      }
+    }
+
+    // YouTube再生（APIが未準備なら読み込みを試みてから再生を予約する）
+    function playYoutubeTrack(track, startSeconds, fadeInMs) {
+      if (!isYtReady || !ytPlayer) {
+        pendingYtPlay = { track, startSeconds, fadeInMs };
+        ensureYoutubeApiLoaded();
+        return;
+      }
+      hideYtStatus();
+      // loadVideoById直後はJS↔iframe間の通信チャンネルがまだ確立していないことがあり、
+      // この時点でsetVolume/unMuteを送っても届かないことがある。そのため音量指定は
+      // ここでは行わず、実際にPLAYING状態になった時点（onStateChangeハンドラ側）で
+      // 適用する。それまでの予約情報だけをセットしておく。
+      ytPendingVolumeFade = { fadeInMs: fadeInMs || 0 };
+      ytPlayer.loadVideoById({ videoId: track.id, startSeconds: startSeconds || 0 });
+      ytPlayer.playVideo();
+    }
+
+    function fadeLocalVolumeTo(targetVol, durationMs, onComplete) {
+      if (fadeInterval) clearInterval(fadeInterval);
+      const startVol = localAudio.volume;
+      const intervalMs = 50;
+      const totalSteps = durationMs / intervalMs;
+      let step = 0;
+      fadeInterval = setInterval(() => {
+        step++;
+        const curVol = startVol + ((targetVol - startVol) / totalSteps) * step;
+        localAudio.volume = Math.max(0, Math.min(1, curVol));
+        if (step >= totalSteps) {
+          clearInterval(fadeInterval);
+          fadeInterval = null;
+          if (onComplete) onComplete();
+        }
+      }, intervalMs);
+    }
+
+    function fadeYoutubeVolumeTo(targetVol, durationMs, onComplete) {
+      if (fadeInterval) clearInterval(fadeInterval);
+      if (!ytPlayer || !isYtReady || typeof ytPlayer.getVolume !== 'function') {
+        if (onComplete) onComplete();
+        return;
+      }
+      // 音量を上げる方向のフェードでは、念のためミュート固着を解除しておく
+      if (targetVol > 0 && typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
+      const startVol = ytPlayer.getVolume();
+      const intervalMs = 50;
+      const totalSteps = durationMs / intervalMs;
+      let step = 0;
+      fadeInterval = setInterval(() => {
+        step++;
+        const curVol = startVol + ((targetVol - startVol) / totalSteps) * step;
+        ytPlayer.setVolume(Math.max(0, Math.min(100, curVol)));
+        if (step >= totalSteps) {
+          clearInterval(fadeInterval);
+          fadeInterval = null;
+          if (onComplete) onComplete();
+        }
+      }, intervalMs);
+    }
+
+    function fadeOutBgm(durationMs = 5000, callback = null) {
+      saveCurrentPosition();
+      if (sourceType === 'local') {
+        fadeLocalVolumeTo(0, durationMs, () => {
+          localAudio.pause();
+          if (callback) callback();
+        });
+      } else if (sourceType === 'youtube' && ytPlayer && isYtReady && typeof ytPlayer.pauseVideo === 'function') {
+        fadeYoutubeVolumeTo(0, durationMs, () => {
+          ytPlayer.pauseVideo();
+          if (callback) callback();
+        });
+      } else {
+        if (callback) callback();
+      }
+    }
+
+    function pauseBgmDirect() {
+      if (fadeInterval) clearInterval(fadeInterval);
+      ytPendingVolumeFade = null;
+      localAudio.pause();
+      if (ytPlayer && isYtReady && typeof ytPlayer.pauseVideo === 'function') {
+        ytPlayer.pauseVideo();
+      }
+    }
+
+    function playNextTrack() {
+      currentTrackIndex[currentMode]++;
+      savedPositions[sourceType][currentMode] = 0;
+      if (isRunning) playBgmWithFadeIn(1000);
+    }
+
+    // --- UI切り替え ---
+    function switchModeTab(mode) {
+      if (isRunning) return;
+      activeTab = mode;
+      document.querySelectorAll('.bgm-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
+      renderPlaylists();
+    }
+
+    function switchSourceType(type) {
+      if (isRunning) return;
+      pauseBgmDirect();
+      sourceType = type;
+      document.getElementById('srcLocalBtn').classList.toggle('active', type === 'local');
+      document.getElementById('srcYtBtn').classList.toggle('active', type === 'youtube');
+      document.getElementById('localExtrasArea').style.display = type === 'local' ? 'block' : 'none';
+      document.getElementById('ytExtrasArea').style.display = type === 'youtube' ? 'block' : 'none';
+      document.getElementById('localSourceArea').style.display = type === 'local' ? 'block' : 'none';
+      document.getElementById('ytSourceArea').style.display = type === 'youtube' ? 'block' : 'none';
+      if (type === 'youtube') ensureYoutubeApiLoaded();
+      renderPlaylists();
+    }
+
+    // BGM設定の周辺UI（タブ・音源切替・URL入力・プレイリストなど）を折りたたむ/開く。
+    // 再生中の本体プレイヤー（ローカルのシークバー／YouTube動画）は折りたたみ対象に含めない。
+    let bgmCollapsed = false;
+    function toggleBgmCollapse() {
+      bgmCollapsed = !bgmCollapsed;
+      document.getElementById('bgmCollapsibleArea').style.display = bgmCollapsed ? 'none' : 'block';
+      document.getElementById('bgmCollapseIcon').className = bgmCollapsed ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-up';
+      document.getElementById('bgmCollapseToggleBtn').title = bgmCollapsed ? '設定欄を開く' : '設定欄を折りたたむ';
+    }
+
+    async function handleFileSelect(e) {
+      if (isRunning) return;
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const localList = playlists[activeTab].local;
+      const youtubeList = playlists[activeTab].youtube;
+      if (localList.length >= MAX_LOCAL_TRACKS_PER_MODE) {
+        alert(`ローカル音源はこのタブにつき${MAX_LOCAL_TRACKS_PER_MODE}曲までです。増やすには、不要な曲を削除してください。`);
+        e.target.value = '';
+        return;
+      }
+      if (localList.length + youtubeList.length >= MAX_PLAYLIST_TRACKS_PER_MODE) {
+        alert(`プレイリストはこのタブにつき${MAX_PLAYLIST_TRACKS_PER_MODE}曲までです。増やすには、不要な曲を削除してください。`);
+        e.target.value = '';
+        return;
+      }
+
+      const id = 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      try {
+        await saveAudioFile(id, file);
+        playlists[activeTab].local.push({ title: file.name, id: id });
+        saveStorageData();
+        renderPlaylists();
+      } catch (err) {
+        console.error('音楽ファイルの保存に失敗しました', err);
+        alert('音楽ファイルの保存に失敗しました。もう一度お試しください。');
+      }
+      e.target.value = '';
+    }
+
+    function addYoutubeTrack() {
+      if (isRunning) return;
+      const input = document.getElementById('ytUrlInput');
+      const val = input.value.trim();
+      if (!val) return;
+
+      if (playlists[activeTab].local.length + playlists[activeTab].youtube.length >= MAX_PLAYLIST_TRACKS_PER_MODE) {
+        alert(`プレイリストはこのタブにつき${MAX_PLAYLIST_TRACKS_PER_MODE}曲までです。増やすには、不要な曲を削除してください。`);
+        return;
+      }
+
+      let id = val;
+      if (val.includes('v=')) id = val.split('v=')[1].split('&')[0];
+      else if (val.includes('youtu.be/')) id = val.split('youtu.be/')[1].split('?')[0];
+
+      playlists[activeTab].youtube.push({ title: `YouTube動画 (${id})`, id: id });
+      input.value = '';
+      saveStorageData();
+      renderPlaylists();
+    }
+
+    function loadPreset(id, title) {
+      if (isRunning) return;
+      if (playlists[activeTab].local.length + playlists[activeTab].youtube.length >= MAX_PLAYLIST_TRACKS_PER_MODE) {
+        alert(`プレイリストはこのタブにつき${MAX_PLAYLIST_TRACKS_PER_MODE}曲までです。増やすには、不要な曲を削除してください。`);
+        return;
+      }
+      playlists[activeTab].youtube.push({ title: title, id: id });
+      saveStorageData();
+      renderPlaylists();
+    }
+
+    async function removeTrack(idx) {
+      if (isRunning) return;
+      const track = playlists[activeTab][sourceType][idx];
+      if (sourceType === 'local' && track) {
+        if (track.url) URL.revokeObjectURL(track.url);
+        if (track.id) {
+          try { await deleteAudioFile(track.id); } catch (e) { console.warn(e); }
+        }
+      }
+      playlists[activeTab][sourceType].splice(idx, 1);
+      saveStorageData();
+      renderPlaylists();
+    }
+
+    function renderPlaylists() {
+      const list = playlists[activeTab][sourceType];
+      const container = document.getElementById('playlistItems');
+      container.innerHTML = '';
+      list.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.className = 'playlist-item';
+
+        const span = document.createElement('span');
+        span.textContent = item.title;
+        li.appendChild(span);
+
+        const btn = document.createElement('button');
+        btn.disabled = isRunning;
+        btn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        btn.addEventListener('click', () => removeTrack(idx));
+        li.appendChild(btn);
+
+        container.appendChild(li);
+      });
+    }
+
+    // --- タスク管理 ---
+    function renderTaskDropdown() {
+      const select = document.getElementById('activeTaskSelect');
+      select.innerHTML = '';
+      const activeTasks = tasks.filter(t => t.status === 'active');
+      activeTasks.forEach(task => {
+        const opt = document.createElement('option');
+        opt.value = task.name;
+        opt.textContent = task.name;
+        if (task.name === selectedTask) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    // 進行中のタスク一覧（タスク管理モーダル内）
+    function renderActiveTaskManageList() {
+      const container = document.getElementById('activeTaskManageList');
+      container.innerHTML = '';
+      tasks.forEach((task, idx) => {
+        if (task.status !== 'active') return;
+        const li = document.createElement('li');
+        li.className = 'task-manage-item';
+
+        const span = document.createElement('span');
+        span.textContent = task.name;
+        li.appendChild(span);
+
+        const btn = document.createElement('button');
+        btn.className = 'complete-btn';
+        btn.title = '完了にする';
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        btn.addEventListener('click', () => completeTask(idx));
+        li.appendChild(btn);
+
+        container.appendChild(li);
+      });
+    }
+
+    // 完了フォルダの一覧（タスク管理モーダル内）
+    function renderCompletedTaskList() {
+      const container = document.getElementById('completedTaskList');
+      container.innerHTML = '';
+      const completedTasks = [];
+      tasks.forEach((task, idx) => {
+        if (task.status === 'completed') completedTasks.push(idx);
+      });
+      document.getElementById('completedCount').textContent = completedTasks.length;
+
+      completedTasks.forEach(idx => {
+        const task = tasks[idx];
+        const li = document.createElement('li');
+        li.className = 'task-manage-item';
+
+        const span = document.createElement('span');
+        span.textContent = task.name;
+        li.appendChild(span);
+
+        const btn = document.createElement('button');
+        btn.className = 'restore-btn';
+        btn.title = '進行中に戻す';
+        btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i>';
+        btn.addEventListener('click', () => restoreTask(idx));
+        li.appendChild(btn);
+
+        container.appendChild(li);
+      });
+    }
+
+    function toggleCompletedFolder() {
+      const list = document.getElementById('completedTaskList');
+      const icon = document.getElementById('completedToggleIcon');
+      const isHidden = list.style.display === 'none';
+      list.style.display = isHidden ? 'block' : 'none';
+      icon.className = isHidden ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
+    }
+
+    function onTaskChange() {
+      selectedTask = document.getElementById('activeTaskSelect').value;
+    }
+
+    function addNewTask() {
+      const input = document.getElementById('newTaskNameInput');
+      const name = input.value.trim();
+      if (!name) return;
+
+      const existing = tasks.find(t => t.name === name);
+      if (!existing && tasks.length >= MAX_TASKS) {
+        alert(`タスクは${MAX_TASKS}個までです。不要な完了タスクを整理してください。`);
+        return;
+      }
+
+      if (existing) {
+        existing.status = 'active';
+      } else {
+        tasks.push({ name: name, status: 'active' });
+      }
+      selectedTask = name;
+      input.value = '';
+      saveStorageData();
+      renderTaskDropdown();
+      renderActiveTaskManageList();
+      renderCompletedTaskList();
+    }
+
+    // タスクを完了として完了フォルダへ移動する
+    function completeTask(idx) {
+      const wasSelected = tasks[idx].name === selectedTask;
+      tasks[idx].status = 'completed';
+
+      if (wasSelected) {
+        const activeTasks = tasks.filter(t => t.status === 'active');
+        selectedTask = activeTasks.length > 0 ? activeTasks[0].name : '';
+      }
+
+      saveStorageData();
+      renderTaskDropdown();
+      renderActiveTaskManageList();
+      renderCompletedTaskList();
+    }
+
+    // 完了フォルダから進行中に戻す
+    function restoreTask(idx) {
+      tasks[idx].status = 'active';
+      saveStorageData();
+      renderTaskDropdown();
+      renderActiveTaskManageList();
+      renderCompletedTaskList();
+    }
+
+    // --- カレンダー & レポート ---
+    function setCalendarView(mode) {
+      calendarViewMode = mode;
+      document.getElementById('viewWeekBtn').classList.toggle('active', mode === 'week');
+      document.getElementById('viewMonthBtn').classList.toggle('active', mode === 'month');
+      document.getElementById('viewYearBtn').classList.toggle('active', mode === 'year');
+      document.getElementById('viewAllBtn').classList.toggle('active', mode === 'all');
+      document.getElementById('viewTodayBtn').classList.toggle('active', mode === 'today');
+      renderCalendar();
+    }
+
+    function changeCalPeriod(delta) {
+      if (calendarViewMode === 'month') {
+        currentCalDate.setMonth(currentCalDate.getMonth() + delta);
+      } else if (calendarViewMode === 'year') {
+        currentCalDate.setFullYear(currentCalDate.getFullYear() + delta);
+      }
+      renderCalendar();
+    }
+
+    // タスクごとに、常に同じ色が割り当たるようにする（グラフを見やすくするため）
+    const TASK_COLORS = ['#f43f5e', '#f59e0b', '#10b981', '#3b82f6', '#a78bfa', '#ec4899'];
+    function getTaskColor(taskName) {
+      let hash = 0;
+      for (let i = 0; i < taskName.length; i++) hash = (hash * 31 + taskName.charCodeAt(i)) >>> 0;
+      return TASK_COLORS[hash % TASK_COLORS.length];
+    }
+
+    // 指定した日付範囲（両端含む・0時基準）に含まれるログを配列で返す
+    function getLogsInRange(startDate, endDate) {
+      const result = [];
+      Object.keys(logs).forEach(key => {
+        const d = new Date(key + 'T00:00:00');
+        if (d >= startDate && d <= endDate) result.push(logs[key]);
+      });
+      return result;
+    }
+
+    // 複数日分のログを1つの集計値にまとめる
+    function sumLogs(logArray) {
+      const totals = { sessions: 0, workMinutes: 0, shortBreaks: 0, longBreaks: 0, taskTime: {} };
+      logArray.forEach(log => {
+        if (!log) return;
+        totals.sessions += log.sessions || 0;
+        totals.workMinutes += log.workMinutes || 0;
+        totals.shortBreaks += log.shortBreaks || 0;
+        totals.longBreaks += log.longBreaks || 0;
+        if (log.taskTime) {
+          Object.entries(log.taskTime).forEach(([task, mins]) => {
+            totals.taskTime[task] = (totals.taskTime[task] || 0) + mins;
+          });
+        }
+      });
+      return totals;
+    }
+
+    // 選択中のタブ（期間）に対応する集計値を返す
+    function getPeriodTotals(mode) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (mode === 'today') {
+        const key = getTodayKey();
+        return sumLogs(logs[key] ? [logs[key]] : []);
+      }
+      if (mode === 'week') {
+        const start = new Date(today);
+        start.setDate(start.getDate() - 6);
+        return sumLogs(getLogsInRange(start, today));
+      }
+      if (mode === 'month') {
+        const y = currentCalDate.getFullYear(), m = currentCalDate.getMonth();
+        return sumLogs(getLogsInRange(new Date(y, m, 1), new Date(y, m + 1, 0)));
+      }
+      if (mode === 'year') {
+        const y = currentCalDate.getFullYear();
+        return sumLogs(getLogsInRange(new Date(y, 0, 1), new Date(y, 11, 31)));
+      }
+      // 'all'
+      return sumLogs(Object.values(logs));
+    }
+
+    function periodLabelShort(mode) {
+      if (mode === 'today') return '今日';
+      if (mode === 'week') return '今週（直近7日間）';
+      if (mode === 'month') return `${currentCalDate.getFullYear()}年${currentCalDate.getMonth() + 1}月`;
+      if (mode === 'year') return `${currentCalDate.getFullYear()}年`;
+      return '全期間';
+    }
+
+    function renderPeriodSummary() {
+      const totals = getPeriodTotals(calendarViewMode);
+      const hours = (totals.workMinutes / 60).toFixed(1);
+      document.getElementById('periodSummaryValue').textContent = `${totals.workMinutes}分 (${hours}時間)`;
+
+      let label = '';
+      if (calendarViewMode === 'today') label = '本日の作業時間';
+      else if (calendarViewMode === 'week') label = '今週の作業時間（直近7日間）';
+      else if (calendarViewMode === 'month') label = `${periodLabelShort('month')}の作業時間`;
+      else if (calendarViewMode === 'year') label = `${periodLabelShort('year')}の作業時間`;
+      else label = '全期間の作業時間';
+      document.getElementById('periodSummaryLabel').textContent = label;
+    }
+
+    function renderCalendar() {
+      const grid = document.getElementById('calendarGrid');
+      const nav = document.getElementById('calendarNav');
+      const timelineList = document.getElementById('todayTimelineList');
+
+      const isToday = calendarViewMode === 'today';
+      const usesNav = calendarViewMode === 'month' || calendarViewMode === 'year';
+      const usesAltGrid = calendarViewMode === 'year' || calendarViewMode === 'all';
+
+      grid.style.display = isToday ? 'none' : 'grid';
+      nav.style.display = usesNav ? 'flex' : 'none';
+      timelineList.style.display = isToday ? 'flex' : 'none';
+      grid.classList.toggle('calendar-grid', !usesAltGrid);
+      grid.classList.toggle('calendar-grid-alt', usesAltGrid);
+
+      grid.innerHTML = '';
+
+      if (isToday) {
+        renderTodayTimeline();
+        showManualAddForm(getTodayKey());
+      } else {
+        resetDayDetail();
+        hideManualAddForm();
+        if (calendarViewMode === 'week') {
+          const today = new Date();
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(today.getDate() - i);
+            createDayCell(grid, d);
+          }
+        } else if (calendarViewMode === 'month') {
+          const y = currentCalDate.getFullYear(), m = currentCalDate.getMonth();
+          document.getElementById('calendarMonthTitle').textContent = `${y}年${m + 1}月`;
+          const lastDay = new Date(y, m + 1, 0).getDate();
+          for (let day = 1; day <= lastDay; day++) createDayCell(grid, new Date(y, m, day));
+        } else if (calendarViewMode === 'year') {
+          const y = currentCalDate.getFullYear();
+          document.getElementById('calendarMonthTitle').textContent = `${y}年`;
+          // 月同士を比較できるよう、先に全ての月の集計を取ってから最大値を求める
+          const monthEntries = [];
+          for (let m = 0; m < 12; m++) {
+            monthEntries.push({ m, totals: sumLogs(getLogsInRange(new Date(y, m, 1), new Date(y, m + 1, 0))) });
+          }
+          const maxMonthMin = Math.max(1, ...monthEntries.map(e => e.totals.workMinutes));
+          monthEntries.forEach(e => createMonthCell(grid, y, e.m, e.totals, maxMonthMin));
+        } else if (calendarViewMode === 'all') {
+          const years = getAvailableYears();
+          const yearEntries = years.map(y => ({ y, totals: sumLogs(getLogsInRange(new Date(y, 0, 1), new Date(y, 11, 31))) }));
+          const maxYearMin = Math.max(1, ...yearEntries.map(e => e.totals.workMinutes));
+          yearEntries.forEach(e => createYearCell(grid, e.y, e.totals, maxYearMin));
+        }
+      }
+
+      renderPeriodSummary();
+      renderTaskReport();
+    }
+
+    function createDayCell(grid, d) {
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const log = logs[dateStr];
+
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell';
+
+      // タスクを切り替えても進捗はリセットせず、いずれか1つのタスクが単独で
+      // 目標セッション数にどれだけ近づいているかをリングの塗りで表す。
+      // 旧データ（taskSessionsがない）は、その日の合計セッション数で判定する。
+      let pct = 0;
+      if (log && log.sessions > 0) {
+        const maxTaskSessions = log.taskSessions && Object.keys(log.taskSessions).length > 0
+          ? Math.max(...Object.values(log.taskSessions))
+          : log.sessions;
+        pct = Math.min(100, Math.round((maxTaskSessions / settings.targetPomo) * 100));
+      }
+
+      cell.innerHTML = `
+        <div class="cal-cell-num">${d.getDate()}</div>
+        <div class="day-progress-ring" style="--pct:${pct}"></div>
+      `;
+      cell.onclick = () => {
+        showPeriodDetail(dateStr, sumLogs(log ? [log] : []));
+        showManualAddForm(dateStr);
+      };
+      grid.appendChild(cell);
+    }
+
+    function createMonthCell(grid, y, m, totals, maxMin) {
+      // 月単位には固定の目標がないため、表示中の範囲内での最大値に対する相対的な塗りにする
+      const pct = totals.workMinutes > 0 ? Math.min(100, Math.round((totals.workMinutes / maxMin) * 100)) : 0;
+
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell';
+      cell.innerHTML = `
+        <div class="cal-cell-num">${m + 1}月</div>
+        <div class="day-progress-ring" style="--pct:${pct}"></div>
+      `;
+      cell.onclick = () => {
+        showPeriodDetail(`${y}年${m + 1}月`, totals);
+        hideManualAddForm();
+      };
+      grid.appendChild(cell);
+    }
+
+    function createYearCell(grid, y, totals, maxMin) {
+      // 年単位も同様に、表示中の範囲内での最大値に対する相対的な塗りにする
+      const pct = totals.workMinutes > 0 ? Math.min(100, Math.round((totals.workMinutes / maxMin) * 100)) : 0;
+
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell';
+      cell.innerHTML = `
+        <div class="cal-cell-num">${y}</div>
+        <div class="day-progress-ring" style="--pct:${pct}"></div>
+      `;
+      cell.onclick = () => {
+        showPeriodDetail(`${y}年`, totals);
+        hideManualAddForm();
+      };
+      grid.appendChild(cell);
+    }
+
+    // ログが存在する年＋今年を含めた年の一覧（昇順）
+    function getAvailableYears() {
+      const years = new Set();
+      Object.keys(logs).forEach(key => years.add(parseInt(key.split('-')[0], 10)));
+      years.add(new Date().getFullYear());
+      return Array.from(years).sort((a, b) => a - b);
+    }
+
+    function showPeriodDetail(title, totals) {
+      document.getElementById('selectedDateTitle').textContent = title;
+      document.getElementById('detailSessions').textContent = totals.sessions;
+      document.getElementById('detailWorkTime').textContent = `${totals.workMinutes}分`;
+      renderDetailTaskBreakdown(totals.taskTime);
+    }
+
+    // 詳細カードに、その期間のタスク別内訳を表示する
+    function renderDetailTaskBreakdown(taskTime) {
+      const breakdown = document.getElementById('detailTaskBreakdown');
+      const taskEntries = Object.entries(taskTime || {})
+        .filter(([, mins]) => mins > 0)
+        .sort((a, b) => b[1] - a[1]);
+
+      if (taskEntries.length === 0) {
+        breakdown.innerHTML = '';
+        breakdown.style.display = 'none';
+        return;
+      }
+
+      breakdown.innerHTML = taskEntries.map(([task, mins]) => `
+        <div class="breakdown-row">
+          <span><span class="task-color-dot" style="background:${getTaskColor(task)}"></span>${escapeHtml(task)}</span>
+          <span>${mins}分</span>
+        </div>
+      `).join('');
+      breakdown.style.display = 'flex';
+    }
+
+    function resetDayDetail() {
+      document.getElementById('selectedDateTitle').textContent = '日付を選択してください';
+      document.getElementById('detailSessions').textContent = '0';
+      document.getElementById('detailWorkTime').textContent = '0分';
+      renderDetailTaskBreakdown(null);
+    }
+
+    // --- 作業時間の手動追加（記録漏れの補完用） ---
+    // 日単位の表示（週間・月間・今日）でのみ、その日付を対象に追加フォームを開く
+    function showManualAddForm(dateStr) {
+      manualAddTargetDate = dateStr;
+      const box = document.getElementById('manualAddBox');
+      const select = document.getElementById('manualAddTaskSelect');
+      const activeTasks = tasks.filter(t => t.status === 'active');
+
+      select.innerHTML = '';
+      activeTasks.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.name;
+        opt.textContent = t.name;
+        select.appendChild(opt);
+      });
+
+      box.style.display = activeTasks.length > 0 ? 'block' : 'none';
+    }
+
+    function hideManualAddForm() {
+      manualAddTargetDate = null;
+      document.getElementById('manualAddBox').style.display = 'none';
+    }
+
+    function submitManualAdd() {
+      if (!manualAddTargetDate) return;
+      const task = document.getElementById('manualAddTaskSelect').value;
+      const minutesInput = document.getElementById('manualAddMinutesInput');
+      const minutes = parseInt(minutesInput.value);
+      if (!task || !minutes || minutes <= 0) return;
+
+      const key = manualAddTargetDate;
+      if (!logs[key]) logs[key] = { sessions: 0, workMinutes: 0, shortBreaks: 0, longBreaks: 0, taskTime: {}, taskSessions: {}, entries: [] };
+      if (!logs[key].entries) logs[key].entries = [];
+      if (!logs[key].taskSessions) logs[key].taskSessions = {};
+
+      logs[key].sessions += 1;
+      logs[key].workMinutes += minutes;
+      logs[key].taskTime[task] = (logs[key].taskTime[task] || 0) + minutes;
+      logs[key].taskSessions[task] = (logs[key].taskSessions[task] || 0) + 1;
+      logs[key].entries.push({ task, minutes, manual: true, start: Date.now(), end: Date.now() });
+
+      saveStorageData();
+      minutesInput.value = '';
+
+      if (calendarViewMode === 'today') {
+        renderTodayTimeline();
+      } else {
+        showPeriodDetail(key, sumLogs([logs[key]]));
+      }
+      renderPeriodSummary();
+      renderTaskReport();
+    }
+
+    function formatClock(ms) {
+      const d = new Date(ms);
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    // 今日タブ: 何時から何時までどのタスクを行っていたかを一覧表示
+    function renderTodayTimeline() {
+      const container = document.getElementById('todayTimelineList');
+      container.innerHTML = '';
+
+      const key = getTodayKey();
+      const log = logs[key];
+      const entries = (log && log.entries) ? [...log.entries].sort((a, b) => a.start - b.start) : [];
+
+      if (entries.length === 0) {
+        container.innerHTML = '<div class="timeline-empty">本日の作業記録はまだありません</div>';
+      } else {
+        entries.forEach(en => {
+          const div = document.createElement('div');
+          div.className = 'timeline-item';
+          const timeLabel = en.manual ? `手動入力（${en.minutes}分）` : `${formatClock(en.start)} - ${formatClock(en.end)}`;
+          div.innerHTML = `
+            <span class="timeline-time">${escapeHtml(timeLabel)}</span>
+            <span class="timeline-task">${escapeHtml(en.task)}</span>
+          `;
+          container.appendChild(div);
+        });
+      }
+
+      showPeriodDetail('本日', sumLogs(log ? [log] : []));
+    }
+
+    function renderTaskReport() {
+      const container = document.getElementById('taskReportList');
+      container.innerHTML = '';
+      document.getElementById('taskReportTitle').textContent = `タスク別時間（${periodLabelShort(calendarViewMode)}）`;
+
+      const totals = getPeriodTotals(calendarViewMode);
+      const taskTotals = totals.taskTime;
+
+      let maxMin = 1;
+      Object.values(taskTotals).forEach(mins => { if (mins > maxMin) maxMin = mins; });
+
+      // 過去に一度でもログが存在する全タスクを表示対象にする（削除されたタスクも過去ログとして表示）
+      const allReportTasks = Array.from(new Set([...tasks.map(t => t.name), ...Object.keys(taskTotals)]));
+
+      let hasAny = false;
+      allReportTasks.forEach(taskName => {
+        const mins = taskTotals[taskName] || 0;
+        if (mins === 0) return; // 実績がないものは非表示
+        hasAny = true;
+
+        const pct = Math.min(100, (mins / maxMin) * 100);
+        const hours = (mins / 60).toFixed(1);
+        const color = getTaskColor(taskName);
+
+        const item = document.createElement('div');
+        item.className = 'task-report-item';
+        item.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:baseline;">
+            <span><span class="task-color-dot" style="background:${color}"></span>${escapeHtml(taskName)}</span>
+            <span class="task-report-value">${mins}分 <small>(${hours}時間)</small></span>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" style="width: ${pct}%; background:${color};"></div></div>
+        `;
+        container.appendChild(item);
+      });
+
+      if (!hasAny) {
+        container.innerHTML = '<div class="timeline-empty">データがありません</div>';
+      }
+    }
+
+    // --- モーダル汎用 ---
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    function saveSettings() {
+      settings.workTime = parseInt(document.getElementById('workTimeInput').value) || DEFAULTS.workTime;
+      settings.shortBreak = parseInt(document.getElementById('shortBreakInput').value) || DEFAULTS.shortBreak;
+      // 長休憩は0分（休憩なし）も正しい入力値として許容する（0は falsy のため || は使わない）
+      settings.longBreak = parseInt(document.getElementById('longBreakInput').value);
+      if (isNaN(settings.longBreak) || settings.longBreak < 0) settings.longBreak = DEFAULTS.longBreak;
+      settings.interval = parseInt(document.getElementById('longBreakIntervalInput').value) || DEFAULTS.interval;
+      settings.targetPomo = parseInt(document.getElementById('targetPomoInput').value) || DEFAULTS.targetPomo;
+      settings.wakeLockEnabled = document.getElementById('wakeLockEnabledInput').checked;
+      settings.autoStartWork = document.getElementById('autoStartWorkInput').checked;
+      settings.autoStartShortBreak = document.getElementById('autoStartShortInput').checked;
+      settings.autoStartLongBreak = document.getElementById('autoStartLongInput').checked;
+      settings.notificationSound = document.getElementById('notificationSoundInput').checked;
+      settings.notificationVolume = parseInt(document.getElementById('notificationVolumeInput').value);
+      if (isNaN(settings.notificationVolume)) settings.notificationVolume = DEFAULTS.notificationVolume;
+
+      saveStorageData();
+      document.getElementById('targetPomoDisplay').textContent = settings.targetPomo;
+      closeModal('settingsModal');
+
+      if (!isRunning) {
+        timeLeft = settings[currentMode + 'Time'] ? settings[currentMode + 'Time'] * 60 : settings.workTime * 60;
+        totalTime = timeLeft;
+        updateTimerUI();
+      }
+    }
+
+    function resetToDefaults() {
+      document.getElementById('workTimeInput').value = DEFAULTS.workTime;
+      document.getElementById('shortBreakInput').value = DEFAULTS.shortBreak;
+      document.getElementById('longBreakInput').value = DEFAULTS.longBreak;
+      document.getElementById('longBreakIntervalInput').value = DEFAULTS.interval;
+      document.getElementById('targetPomoInput').value = DEFAULTS.targetPomo;
+      document.getElementById('wakeLockEnabledInput').checked = DEFAULTS.wakeLockEnabled;
+      document.getElementById('autoStartWorkInput').checked = DEFAULTS.autoStartWork;
+      document.getElementById('autoStartShortInput').checked = DEFAULTS.autoStartShortBreak;
+      document.getElementById('autoStartLongInput').checked = DEFAULTS.autoStartLongBreak;
+      document.getElementById('notificationSoundInput').checked = DEFAULTS.notificationSound;
+      document.getElementById('notificationVolumeInput').value = DEFAULTS.notificationVolume;
+      document.getElementById('notificationVolumeText').textContent = `${DEFAULTS.notificationVolume}%`;
+      saveSettings();
+    }
+  </script>
+</body>
+</html>
