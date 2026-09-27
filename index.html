@@ -1324,6 +1324,12 @@
 
       <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
 
+      <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">タスクの記録</h4>
+      <div class="setting-row"><label>タスクが「None」のときは作業時間を記録しない</label><input type="checkbox" id="skipLogWhenNoTaskInput"></div>
+      <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 4px;">オンにすると、タスク選択が「None」の状態で完了した作業セッションは、統計・記録に一切残りません。気軽に使いたい方向けの設定です。</p>
+
+      <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
       <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">通知音</h4>
       <div class="setting-row"><label>作業・休憩の終了時に音を鳴らす</label><input type="checkbox" id="notificationSoundInput"></div>
       <div class="setting-row">
@@ -1376,7 +1382,8 @@
     const DEFAULTS = {
       workTime: 25, shortBreak: 5, longBreak: 0, interval: 4, targetPomo: 4,
       autoStartWork: true, autoStartShortBreak: true, autoStartLongBreak: true,
-      notificationSound: false, notificationVolume: 20, wakeLockEnabled: true
+      notificationSound: false, notificationVolume: 20, wakeLockEnabled: true,
+      skipLogWhenNoTask: false
     };
     let settings = { ...DEFAULTS };
 
@@ -1648,6 +1655,7 @@
       document.getElementById('notificationSoundInput').checked = settings.notificationSound;
       document.getElementById('notificationVolumeInput').value = settings.notificationVolume;
       document.getElementById('notificationVolumeText').textContent = `${settings.notificationVolume}%`;
+      document.getElementById('skipLogWhenNoTaskInput').checked = settings.skipLogWhenNoTask;
 
       const savedPlaylists = await kvGet('playlists');
       if (savedPlaylists) {
@@ -2297,14 +2305,18 @@
         pomoCount++;
         document.getElementById('currentPomo').textContent = pomoCount;
 
-        logs[today].sessions += 1;
-        logs[today].workMinutes += settings.workTime;
-        logs[today].taskTime[selectedTask] = (logs[today].taskTime[selectedTask] || 0) + settings.workTime;
-        logs[today].taskSessions[selectedTask] = (logs[today].taskSessions[selectedTask] || 0) + 1;
+        // 「None」選択中に記録をオフにする設定がオンの場合、この作業セッションは記録を残さない
+        const skipLogging = selectedTask === NO_TASK_NAME && settings.skipLogWhenNoTask;
+        if (!skipLogging) {
+          logs[today].sessions += 1;
+          logs[today].workMinutes += settings.workTime;
+          logs[today].taskTime[selectedTask] = (logs[today].taskTime[selectedTask] || 0) + settings.workTime;
+          logs[today].taskSessions[selectedTask] = (logs[today].taskSessions[selectedTask] || 0) + 1;
 
-        const sessionEnd = Date.now();
-        const sessionStart = workSessionStartTime || (sessionEnd - settings.workTime * 60000);
-        logs[today].entries.push({ task: selectedTask, start: sessionStart, end: sessionEnd });
+          const sessionEnd = Date.now();
+          const sessionStart = workSessionStartTime || (sessionEnd - settings.workTime * 60000);
+          logs[today].entries.push({ task: selectedTask, start: sessionStart, end: sessionEnd });
+        }
         workSessionStartTime = null;
 
         saveStorageData();
@@ -3347,6 +3359,7 @@
       settings.notificationSound = document.getElementById('notificationSoundInput').checked;
       settings.notificationVolume = parseInt(document.getElementById('notificationVolumeInput').value);
       if (isNaN(settings.notificationVolume)) settings.notificationVolume = DEFAULTS.notificationVolume;
+      settings.skipLogWhenNoTask = document.getElementById('skipLogWhenNoTaskInput').checked;
 
       saveStorageData();
       document.getElementById('targetPomoDisplay').textContent = settings.targetPomo;
@@ -3372,6 +3385,7 @@
       document.getElementById('notificationSoundInput').checked = DEFAULTS.notificationSound;
       document.getElementById('notificationVolumeInput').value = DEFAULTS.notificationVolume;
       document.getElementById('notificationVolumeText').textContent = `${DEFAULTS.notificationVolume}%`;
+      document.getElementById('skipLogWhenNoTaskInput').checked = DEFAULTS.skipLogWhenNoTask;
       saveSettings();
     }
   </script>
