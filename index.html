@@ -1292,6 +1292,7 @@
         <li><b>ローカル音楽ファイル</b>: バックアップに音楽ファイル本体は含まれません(曲名のみ)。別環境に読み込んだ場合はBGM設定で選び直してください。</li>
         <li><b>データのインポート</b>: 信頼できるバックアップファイルのみ読み込んでください。</li>
         <li><b>YouTube再生</b>: 投稿者の設定・年齢制限・地域制限により、再生できない動画があります。</li>
+        <li><b>スマートフォンでのバックグラウンド再生</b>: ローカル音源は画面ロック中や他のアプリ使用中も再生が続き、タイマーも進みます(ロック画面・通知欄から一時停止・次の曲の操作も可能)。YouTubeはYouTube側の仕様により、バックグラウンドでは止まります。BGMが無いあいだは画面ロック中にタイマーが止まって見えますが、画面に戻ると経過時間が正しく反映されます。</li>
         <li><b>免責事項</b>: 本アプリの利用により生じたいかなる損害についても作者は責任を負いません。あらかじめご了承のうえご利用ください。</li>
       </ul>
     </div>
@@ -2007,6 +2008,10 @@
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     }
 
+    function isAndroid() {
+      return /Android/i.test(navigator.userAgent);
+    }
+
     // --- 初期化 ---
     window.addEventListener('DOMContentLoaded', async () => {
       if (isIOS()) {
@@ -2030,6 +2035,9 @@
       // YouTube APIは先読みしておく（再生時に毎回待たされないように）。
       // 失敗してもリトライ・タイムアウト処理があるので固まらない。
       ensureYoutubeApiLoaded();
+
+      setupMediaSessionHandlers();
+      updateMediaSession();
 
       document.getElementById('startPauseBtn').addEventListener('click', toggleTimer);
 
@@ -2114,6 +2122,9 @@
 
       const seekSlider = document.getElementById('seekSlider');
       localAudio.addEventListener('timeupdate', () => {
+        // iPhoneで画面ロック中・バックグラウンド中はsetIntervalが止まるが、BGM再生中は
+        // timeupdateが発火し続けるので、ここからもタイマーを進める（セッションの自動切り替えのため）
+        if (isRunning) timerTick();
         if (localAudio.duration) {
           seekSlider.value = (localAudio.currentTime / localAudio.duration) * 100;
           document.getElementById('currentTimeText').textContent = formatTime(localAudio.currentTime);
@@ -2136,6 +2147,7 @@
       // 再生開始に成功したらスキップカウンタをリセット
       localAudio.addEventListener('playing', () => {
         skipAttempts[currentMode] = 0;
+        updateMediaSession(); // ロック画面の曲名を今の曲に更新
       });
       // 読み込み・再生エラー時は自動的に次のトラックへ（無限に無音のまま止まらないように）
       localAudio.addEventListener('error', () => {
@@ -2232,6 +2244,47 @@
       }
     }
 
+    // Wake Lockは別アプリへの切り替えや画面ロックで自動的に解除されるため、
+    // 画面に戻ってきた時点でタイマー実行中なら取り直す。
+    // あわせて、バックグラウンド中に止まっていたタイマー表示をすぐ最新にする。
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      if (isRunning) {
+        timerTick();
+        if (settings.wakeLockEnabled && !wakeLockSentinel) acquireWakeLock();
+      }
+    });
+
+    // --- ロック画面・コントロールセンターの再生操作（Media Session API） ---
+    // iPhoneのロック画面に曲名とモードを表示し、再生/一時停止/次の曲の操作をタイマーと連動させる
+    function updateMediaSession() {
+      if (!('mediaSession' in navigator)) return;
+      try {
+        const modeLabel = currentMode === 'work' ? '作業中' : currentMode === 'shortBreak' ? '短休憩中' : '長休憩中';
+        const list = playlists[currentMode] && playlists[currentMode][sourceType];
+        const track = list && list.length ? list[currentTrackIndex[currentMode] % list.length] : null;
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track ? track.title : modeLabel,
+          artist: `${modeLabel} - ${BASE_TITLE}`
+        });
+        navigator.mediaSession.playbackState = isRunning ? 'playing' : 'paused';
+      } catch (e) {
+        console.warn('Media Sessionの更新に失敗しました', e);
+      }
+    }
+
+    function setupMediaSessionHandlers() {
+      if (!('mediaSession' in navigator)) return;
+      const handlers = {
+        play: () => { if (!isRunning) startTimer(); },
+        pause: () => { if (isRunning) pauseTimer(); },
+        nexttrack: () => { if (isRunning) playNextTrack(); updateMediaSession(); }
+      };
+      Object.entries(handlers).forEach(([action, fn]) => {
+        try { navigator.mediaSession.setActionHandler(action, fn); } catch (e) { /* 未対応の操作は無視 */ }
+      });
+    }
+
     // --- タイマー処理 ---
     function toggleTimer() { isRunning ? pauseTimer() : startTimer(); }
 
@@ -2258,27 +2311,35 @@
       // タブのバックグラウンド化やスリープでtickが間引かれても、実際に経過した
       // 実時間（Date.now()の差分）で残り時間を計算するため、tick回数には依存しない
       lastTickTimestamp = Date.now();
-      timerInterval = setInterval(() => {
-        const now = Date.now();
-        const deltaSec = (now - lastTickTimestamp) / 1000;
-        lastTickTimestamp = now;
+      clearInterval(timerInterval);
+      timerInterval = setInterval(timerTick, 1000);
+      updateMediaSession();
+    }
 
-        timeLeft -= deltaSec;
+    // タイマーの1tick分の処理。setIntervalのほか、iPhoneで画面ロック中・バックグラウンド中に
+    // setIntervalが止まってもBGMの再生イベント(timeupdate)から呼ばれるので、タイマーが進み続ける。
+    // 実時間差分で計算しているため、複数の経路から呼ばれても時間が二重に進むことはない。
+    function timerTick() {
+      if (!isRunning || lastTickTimestamp === null) return;
+      const now = Date.now();
+      const deltaSec = (now - lastTickTimestamp) / 1000;
+      lastTickTimestamp = now;
 
-        // 外側の円（目標セット全体）の経過秒数も同じ実時間差分で進め、1周したら繰り越す
-        outerElapsedSeconds += deltaSec;
-        const outerTotal = getOuterTotalSeconds();
-        outerElapsedSeconds = outerElapsedSeconds % outerTotal;
+      timeLeft -= deltaSec;
 
-        updateTimerUI();
+      // 外側の円（目標セット全体）の経過秒数も同じ実時間差分で進め、1周したら繰り越す
+      outerElapsedSeconds += deltaSec;
+      const outerTotal = getOuterTotalSeconds();
+      outerElapsedSeconds = outerElapsedSeconds % outerTotal;
 
-        if (timeLeft <= 5 && !isFadingOut) {
-          isFadingOut = true;
-          fadeOutBgm(5000);
-        }
+      updateTimerUI();
 
-        if (timeLeft <= 0) handleTimerCompletion();
-      }, 1000);
+      if (timeLeft <= 5 && !isFadingOut) {
+        isFadingOut = true;
+        fadeOutBgm(5000);
+      }
+
+      if (timeLeft <= 0) handleTimerCompletion();
     }
 
     function pauseTimer() {
@@ -2290,10 +2351,12 @@
       saveCurrentPosition();
       pauseBgmDirect();
       releaseWakeLock();
+      updateMediaSession();
     }
 
     function handleTimerCompletion() {
       clearInterval(timerInterval);
+      lastTickTimestamp = null; // 完了処理中に別経路(timeupdate)からtickが重ねて走らないようにする
       if (settings.notificationSound) playNotificationSound();
       const today = getTodayKey();
       if (!logs[today]) logs[today] = { sessions: 0, workMinutes: 0, shortBreaks: 0, longBreaks: 0, taskTime: {}, taskSessions: {}, entries: [] };
@@ -2361,6 +2424,9 @@
         document.getElementById('playIcon').className = 'fa-solid fa-play';
         updateEditLockUI();
         releaseWakeLock();
+        // iPhone・Androidではフェードアウト後に止めず鳴らし続けているため、ここで止める
+        pauseBgmDirect();
+        updateMediaSession();
       }
     }
 
@@ -2425,7 +2491,9 @@
     async function playBgmDirect() {
       if (fadeInterval) clearInterval(fadeInterval);
       const list = playlists[currentMode][sourceType];
-      if (!list || list.length === 0) return;
+      // 次のセッションに曲が無い場合は、前のセッションの曲が鳴り続けないよう止めておく
+      // （iPhone・Androidではセッション切り替え時に前の曲を止めずにおくため）
+      if (!list || list.length === 0) { localAudio.pause(); updateMediaSession(); return; }
 
       const idx = currentTrackIndex[currentMode] % list.length;
       const track = list[idx];
@@ -2452,7 +2520,9 @@
     async function playBgmWithFadeIn(durationMs = 1000) {
       if (fadeInterval) clearInterval(fadeInterval);
       const list = playlists[currentMode][sourceType];
-      if (!list || list.length === 0) return;
+      // 次のセッションに曲が無い場合は、前のセッションの曲が鳴り続けないよう止めておく
+      // （iPhone・Androidではセッション切り替え時に前の曲を止めずにおくため）
+      if (!list || list.length === 0) { localAudio.pause(); updateMediaSession(); return; }
 
       const idx = currentTrackIndex[currentMode] % list.length;
       const track = list[idx];
@@ -2540,6 +2610,23 @@
 
     function fadeOutBgm(durationMs = 5000, callback = null) {
       saveCurrentPosition();
+      // iPhoneでは音量をJSから変えられずフェード自体が効かないうえ、一度pauseすると
+      // 画面ロック中・バックグラウンド中には次のセッションのBGMを再開できなくなる。
+      // そのためiPhoneのローカル音源ではここでは止めず、次のセッションの開始時に
+      // 曲をそのまま切り替える（自動開始しない場合は完了処理側で停止する）。
+      if (sourceType === 'local' && isIOS()) {
+        if (callback) callback();
+        return;
+      }
+      // Androidは音量を変えられるのでフェードアウトはするが、iPhoneと同じ理由で
+      // 音量0のまま止めずにおき、次のセッションの開始時に曲を切り替えてフェードインする。
+      // （止めると「音が鳴っていないページ」扱いになり、画面オフ中に処理が止められることがあるため）
+      if (sourceType === 'local' && isAndroid()) {
+        fadeLocalVolumeTo(0, durationMs, () => {
+          if (callback) callback();
+        });
+        return;
+      }
       if (sourceType === 'local') {
         fadeLocalVolumeTo(0, durationMs, () => {
           localAudio.pause();
