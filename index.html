@@ -1442,7 +1442,11 @@
     let skipAttempts = { work: 0, shortBreak: 0, longBreak: 0 };
     const MAX_SKIP_ATTEMPTS = 6;
 
+    // localAudio は「いま鳴らしている」オーディオ要素を指す。
+    // Androidでは曲を切り替えるとき、standbyAudio 側で次の曲を鳴らし始めてから前の曲を止め、
+    // 2つの役割を入れ替える（handoffLocalAudio()を参照）。
     let localAudio = new Audio();
+    let standbyAudio = new Audio();
     let ytPlayer = null;
     let isYtReady = false;
     let fadeInterval = null;
@@ -2121,18 +2125,6 @@
       });
 
       const seekSlider = document.getElementById('seekSlider');
-      localAudio.addEventListener('timeupdate', () => {
-        // iPhoneで画面ロック中・バックグラウンド中はsetIntervalが止まるが、BGM再生中は
-        // timeupdateが発火し続けるので、ここからもタイマーを進める（セッションの自動切り替えのため）
-        if (isRunning) timerTick();
-        if (localAudio.duration) {
-          seekSlider.value = (localAudio.currentTime / localAudio.duration) * 100;
-          document.getElementById('currentTimeText').textContent = formatTime(localAudio.currentTime);
-        }
-      });
-      localAudio.addEventListener('loadedmetadata', () => {
-        document.getElementById('durationText').textContent = formatTime(localAudio.duration);
-      });
       seekSlider.addEventListener('input', (e) => {
         if (localAudio.duration) {
           const seekTo = (e.target.value / 100) * localAudio.duration;
@@ -2140,19 +2132,49 @@
           savedPositions.local[currentMode] = seekTo;
         }
       });
-      localAudio.addEventListener('ended', () => {
-        savedPositions.local[currentMode] = 0;
-        playNextTrack();
-      });
-      // 再生開始に成功したらスキップカウンタをリセット
-      localAudio.addEventListener('playing', () => {
-        skipAttempts[currentMode] = 0;
-        updateMediaSession(); // ロック画面の曲名を今の曲に更新
-      });
-      // 読み込み・再生エラー時は自動的に次のトラックへ（無限に無音のまま止まらないように）
-      localAudio.addEventListener('error', () => {
-        console.warn('ローカル音源の読み込みに失敗しました。次のトラックへ移ります');
-        handlePlaybackFailure();
+
+      // 2つのオーディオ要素の両方にイベントを付ける。
+      // 引き継ぎ中に止めていく側（localAudioでない方）のイベントは無視する。
+      [localAudio, standbyAudio].forEach(audio => {
+        audio.addEventListener('timeupdate', () => {
+          if (audio !== localAudio) return;
+          // iPhoneで画面ロック中・バックグラウンド中はsetIntervalが止まるが、BGM再生中は
+          // timeupdateが発火し続けるので、ここからもタイマーを進める（セッションの自動切り替えのため）
+          if (isRunning) timerTick();
+          if (audio.duration) {
+            seekSlider.value = (audio.currentTime / audio.duration) * 100;
+            document.getElementById('currentTimeText').textContent = formatTime(audio.currentTime);
+          }
+          // Androidでは曲が終わってから次の曲を鳴らすと、画面オフ中（省電力状態）に
+          // 再生を拒否されるため、終わる少し手前で次の曲へ引き継ぐ
+          if (isAndroid() && isRunning && sourceType === 'local' && !isFadingOut &&
+              audio.duration && !audio.paused && !audio._preEndHandoffDone &&
+              audio.duration - audio.currentTime < ANDROID_PRE_END_HANDOFF_SEC) {
+            audio._preEndHandoffDone = true;
+            playNextTrack();
+          }
+        });
+        audio.addEventListener('loadedmetadata', () => {
+          if (audio !== localAudio) return;
+          document.getElementById('durationText').textContent = formatTime(audio.duration);
+        });
+        audio.addEventListener('ended', () => {
+          if (audio !== localAudio) return;
+          savedPositions.local[currentMode] = 0;
+          playNextTrack();
+        });
+        // 再生開始に成功したらスキップカウンタをリセット
+        audio.addEventListener('playing', () => {
+          if (audio !== localAudio) return;
+          skipAttempts[currentMode] = 0;
+          updateMediaSession(); // ロック画面の曲名を今の曲に更新
+        });
+        // 読み込み・再生エラー時は自動的に次のトラックへ（無限に無音のまま止まらないように）
+        audio.addEventListener('error', () => {
+          if (audio !== localAudio) return;
+          console.warn('ローカル音源の読み込みに失敗しました。次のトラックへ移ります');
+          handlePlaybackFailure();
+        });
       });
     });
 
@@ -2504,9 +2526,14 @@
         const url = await resolveLocalTrackUrl(track);
         if (!url) { handlePlaybackFailure(); return; }
 
+        if (shouldHandoffLocalAudio(url)) {
+          handoffLocalAudio(url, savedPositions.local[currentMode] || 0, 0);
+          return;
+        }
         if (localAudio.src !== url) {
           localAudio.src = url;
           localAudio.currentTime = savedPositions.local[currentMode] || 0;
+          localAudio._preEndHandoffDone = false;
         }
         localAudio.volume = masterVolume;
         localAudio.play().catch(() => handlePlaybackFailure());
@@ -2533,12 +2560,17 @@
         const url = await resolveLocalTrackUrl(track);
         if (!url) { handlePlaybackFailure(); return; }
 
+        if (shouldHandoffLocalAudio(url)) {
+          handoffLocalAudio(url, savedPositions.local[currentMode] || 0, durationMs);
+          return;
+        }
         if (localAudio.src !== url) {
           localAudio.src = url;
           localAudio.currentTime = savedPositions.local[currentMode] || 0;
+          localAudio._preEndHandoffDone = false;
         }
 
-        localAudio.volume = 0;
+        localAudio.volume = getFadeFloorVolume();
         localAudio.play().then(() => {
           fadeLocalVolumeTo(masterVolume, durationMs);
         }).catch(() => handlePlaybackFailure());
@@ -2547,6 +2579,118 @@
         localAudio.pause();
         playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, durationMs);
       }
+    }
+
+    // --- Android用: 音を途切れさせずに曲を切り替える ---
+    // Androidの画面オフ中（省電力状態）は、いったん音が止まったページが再び音を鳴らそうとしても
+    // OSに拒否される。そこで、鳴っている曲を止める前に、もう1つのオーディオ要素で次の曲を
+    // 鳴らし始め、鳴り始めてから前の曲を止める（音が鳴っている状態を一度も途切れさせない）。
+    const ANDROID_PRE_END_HANDOFF_SEC = 1.5; // 曲の終わりの何秒前に次の曲へ引き継ぐか
+
+    // AndroidのChromeは、画面が隠れている間に音量0のメディアを「音を出していない」とみなして
+    // 停止する（再生開始も拒否される）。そのためAndroidではフェードの下限を0ではなく、
+    // ほぼ聞こえない小さな値にする。
+    const ANDROID_MIN_AUDIBLE_VOLUME = 0.001;
+    function getFadeFloorVolume() {
+      return isAndroid() ? ANDROID_MIN_AUDIBLE_VOLUME : 0;
+    }
+
+    // 今の曲が鳴っている最中に、別の曲へ切り替えようとしているときだけ引き継ぎを使う。
+    // 同じ曲でも、終わり際（1曲だけのプレイリストで頭から繰り返す場合など）は引き継ぐ。
+    function shouldHandoffLocalAudio(url) {
+      if (!isAndroid() || localAudio.paused || localAudio.ended) return false;
+      if (localAudio.src !== url) return true;
+      const remaining = localAudio.duration - localAudio.currentTime;
+      return remaining < ANDROID_PRE_END_HANDOFF_SEC + 0.5;
+    }
+
+    async function handoffLocalAudio(url, startSeconds, fadeInMs) {
+      const oldAudio = localAudio;
+      const newAudio = standbyAudio;
+      if (newAudio._fadeOutHandle) { clearInterval(newAudio._fadeOutHandle); newAudio._fadeOutHandle = null; }
+      newAudio.pause();
+      newAudio.preload = 'auto';
+      newAudio.src = url;
+      newAudio.volume = getFadeFloorVolume();
+      newAudio._preEndHandoffDone = false;
+      // 先に役割を入れ替えておく（以後のイベントやシーク操作は新しい曲が対象になる）
+      localAudio = newAudio;
+      standbyAudio = oldAudio;
+      // 曲の情報を読み込んでから再生する。読み込み前に再生すると、画面オフ中のChromeは
+      // 「音声があるか分からない＝映像だけのメディア」とみなして、電力節約のため再生を止めてしまう
+      await waitForAudioMetadata(newAudio, 5000);
+      if (localAudio !== newAudio) return;
+      newAudio.currentTime = startSeconds || 0;
+      try {
+        await newAudio.play();
+      } catch (e) {
+        console.warn('曲の引き継ぎ再生に失敗しました', e && e.name, e && e.message);
+        if (localAudio !== newAudio) return;
+        // 役割を元に戻し、従来どおり鳴っている要素の曲を差し替える方法で再生する
+        // （曲自体の問題ではないので、ここでは次の曲へスキップしない）
+        localAudio = oldAudio;
+        standbyAudio = newAudio;
+        newAudio.pause();
+        oldAudio.src = url;
+        oldAudio.currentTime = startSeconds || 0;
+        oldAudio._preEndHandoffDone = false;
+        oldAudio.volume = getFadeFloorVolume();
+        oldAudio.play().then(() => {
+          if (fadeInMs > 0) fadeLocalVolumeTo(masterVolume, fadeInMs);
+          else oldAudio.volume = masterVolume;
+        }).catch(() => handlePlaybackFailure());
+        return;
+      }
+      // 待っている間にさらに別の切り替えが起きていたら、何もしない
+      if (localAudio !== newAudio) return;
+      document.getElementById('durationText').textContent = formatTime(newAudio.duration);
+      if (fadeInMs > 0) fadeLocalVolumeTo(masterVolume, fadeInMs);
+      else newAudio.volume = masterVolume;
+      // 新しい曲が鳴り始めたので、前の曲は同じ時間をかけて小さくしてから止める（クロスフェード）
+      fadeOutAndStopAudio(oldAudio, fadeInMs);
+    }
+
+    // オーディオ要素が曲の情報（長さ・音声トラックの有無）を読み込むまで待つ。
+    // 読み込みエラーやタイムアウトの場合もそのまま先へ進める（失敗は play() 側で扱う）
+    function waitForAudioMetadata(audio, timeoutMs) {
+      return new Promise(resolve => {
+        if (audio.readyState >= 1) { resolve(); return; }
+        const done = () => {
+          clearTimeout(timer);
+          audio.removeEventListener('loadedmetadata', done);
+          audio.removeEventListener('error', done);
+          resolve();
+        };
+        const timer = setTimeout(done, timeoutMs);
+        audio.addEventListener('loadedmetadata', done);
+        audio.addEventListener('error', done);
+      });
+    }
+
+    // 指定したオーディオ要素を、durationMsかけて音量0にしてから停止する。
+    // 途中でその要素が再び「いま鳴らしている」側に戻った場合はフェードを中止する。
+    function fadeOutAndStopAudio(audio, durationMs) {
+      if (audio._fadeOutHandle) clearInterval(audio._fadeOutHandle);
+      audio._fadeOutHandle = null;
+      const startVol = audio.volume;
+      if (!durationMs || startVol <= 0.01) { audio.pause(); return; }
+      const intervalMs = 50;
+      const totalSteps = Math.max(1, durationMs / intervalMs);
+      let step = 0;
+      audio._fadeOutHandle = setInterval(() => {
+        if (audio === localAudio) {
+          clearInterval(audio._fadeOutHandle);
+          audio._fadeOutHandle = null;
+          return;
+        }
+        step++;
+        audio.volume = Math.max(0, startVol * (1 - step / totalSteps));
+        if (step >= totalSteps) {
+          clearInterval(audio._fadeOutHandle);
+          audio._fadeOutHandle = null;
+          audio.pause();
+        }
+      }, intervalMs);
     }
 
     // YouTube再生（APIが未準備なら読み込みを試みてから再生を予約する）
@@ -2619,10 +2763,11 @@
         return;
       }
       // Androidは音量を変えられるのでフェードアウトはするが、iPhoneと同じ理由で
-      // 音量0のまま止めずにおき、次のセッションの開始時に曲を切り替えてフェードインする。
+      // 止めずにおき、次のセッションの開始時に曲を切り替えてフェードインする。
       // （止めると「音が鳴っていないページ」扱いになり、画面オフ中に処理が止められることがあるため）
+      // 音量0にするとChromeに止められるので、ほぼ聞こえない下限の音量までにとどめる。
       if (sourceType === 'local' && isAndroid()) {
-        fadeLocalVolumeTo(0, durationMs, () => {
+        fadeLocalVolumeTo(getFadeFloorVolume(), durationMs, () => {
           if (callback) callback();
         });
         return;
@@ -2646,6 +2791,9 @@
       if (fadeInterval) clearInterval(fadeInterval);
       ytPendingVolumeFade = null;
       localAudio.pause();
+      // Androidの引き継ぎ中にフェードアウトしている側も止める
+      if (standbyAudio._fadeOutHandle) { clearInterval(standbyAudio._fadeOutHandle); standbyAudio._fadeOutHandle = null; }
+      standbyAudio.pause();
       if (ytPlayer && isYtReady && typeof ytPlayer.pauseVideo === 'function') {
         ytPlayer.pauseVideo();
       }
