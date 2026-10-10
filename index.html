@@ -149,6 +149,22 @@
       color: var(--text-main);
     }
 
+    /* タスクごとの設定がオンのとき、今どの設定で動いているかを示す小さな表示 */
+    .profile-badge {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      background: var(--segment-bg);
+      border-radius: 6px;
+      padding: 2px 7px;
+      white-space: nowrap;
+    }
+    .profile-label {
+      font-size: 0.68rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-left: 6px;
+    }
+
     /* タイマーカード（backdrop-filterは背景が単色黒のため視覚上ノーオペレーションになるので外している） */
     .timer-section {
       background: var(--card-bg);
@@ -299,6 +315,28 @@
 
     .btn-main:active { transform: scale(0.92); }
 
+    /* 再生ボタンの左右に置く小さな丸ボタン（左: 小型タイマー、右: 次の曲）。
+       左右で同じ大きさにして、再生ボタンを中央に保つ */
+    .controls { gap: 18px; }
+    .btn-sub {
+      background: transparent;
+      color: var(--current-accent);
+      border: 1.5px solid var(--current-accent);
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.12s ease, color 0.4s ease, border-color 0.4s ease, opacity 0.2s ease;
+    }
+    .btn-sub:active { transform: scale(0.9); }
+    .btn-sub:disabled { opacity: 0.3; cursor: default; transform: none; }
+    /* 小型タイマーを開いている間は、ボタンを塗りつぶして「開いている」ことを示す */
+    .btn-sub.active { background: var(--current-accent); color: #fff; }
+
     /* 音量バー */
     .volume-container {
       display: flex;
@@ -395,6 +433,40 @@
       background: var(--segment-active);
       color: var(--text-main);
       font-weight: 600;
+    }
+
+    /* プレイリストの見出しと、再生方法の切り替えボタン */
+    .playlist-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 12px 0 6px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .play-mode-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--segment-bg);
+      border: none;
+      color: var(--text-main);
+      padding: 4px 10px;
+      border-radius: 7px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    /* 1曲リピートのアイコンに小さな「1」を重ねる */
+    .play-mode-btn .repeat-one { position: relative; }
+    .play-mode-btn .repeat-one::after {
+      content: '1';
+      position: absolute;
+      right: -5px;
+      bottom: -4px;
+      font-size: 0.55rem;
+      font-weight: 700;
+      font-family: inherit;
     }
 
     .source-selector {
@@ -1083,6 +1155,8 @@
     <div class="task-selector-bar">
       <i class="fa-solid fa-list-check" style="color: var(--text-muted);"></i>
       <select id="activeTaskSelect"></select>
+      <!-- タスクごとの設定がオンのときだけ表示する -->
+      <span class="profile-badge" id="taskProfileBadge" style="display: none;"></span>
     </div>
 
     <!-- タイマー（円形表示） -->
@@ -1113,9 +1187,12 @@
         </div>
       </div>
 
-      <!-- コントロールボタン（スタート / 一時停止） -->
+      <!-- コントロールボタン（小型タイマー、スタート / 一時停止、次の曲） -->
+      <!-- 小型タイマーボタンは非対応環境・設定オフのときも場所だけ残し(visibility:hidden)、再生ボタンを中央に保つ -->
       <div class="controls">
+        <button class="btn-sub" id="miniTimerBtn" title="小型タイマーを開く" aria-label="小型タイマーを開く" style="visibility: hidden;"><i class="fa-solid fa-up-right-from-square"></i></button>
         <button class="btn-main" id="startPauseBtn" title="スタート/一時停止"><i class="fa-solid fa-play" id="playIcon"></i></button>
+        <button class="btn-sub" id="nextTrackBtn" title="次の曲" aria-label="次の曲" disabled><i class="fa-solid fa-forward-step"></i></button>
       </div>
 
       <!-- 音量バー -->
@@ -1129,7 +1206,7 @@
     <!-- BGM設定セクション -->
     <div class="bgm-section">
       <div class="bgm-section-header">
-        <span class="bgm-section-title">BGM設定</span>
+        <span class="bgm-section-title">BGM設定<span class="profile-label" id="bgmProfileLabel"></span></span>
         <button class="icon-btn" id="bgmCollapseToggleBtn" title="設定欄を折りたたむ">
           <i class="fa-solid fa-chevron-up" id="bgmCollapseIcon"></i>
         </button>
@@ -1174,6 +1251,11 @@
           </div>
         </div>
 
+        <!-- 再生方法（順番 / シャッフル / 1曲リピート）。作業・短休憩・長休憩ごとに設定でき、実行中は変更不可 -->
+        <div class="playlist-header">
+          <span>プレイリスト</span>
+          <button class="play-mode-btn" id="playModeBtn" title="再生方法を切り替える"></button>
+        </div>
         <ul class="playlist" id="playlistItems"></ul>
       </div>
 
@@ -1292,6 +1374,7 @@
         <li><b>ローカル音楽ファイル</b>: バックアップに音楽ファイル本体は含まれません(曲名のみ)。別環境に読み込んだ場合はBGM設定で選び直してください。</li>
         <li><b>データのインポート</b>: 信頼できるバックアップファイルのみ読み込んでください。</li>
         <li><b>YouTube再生</b>: 投稿者の設定・年齢制限・地域制限により、再生できない動画があります。</li>
+        <li><b>小型タイマー(PCのChrome・Edge)</b>: 再生ボタン左のボタンで、他のアプリより手前に表示される小さなタイマーを開けます。端をドラッグして大きさを変えられ、作業・休憩の切り替わりで色が変わって光ります。設定でボタンの表示・光らせるかを切り替えられます。</li>
         <li><b>スマートフォンでのバックグラウンド再生</b>: ローカル音源は画面ロック中や他のアプリ使用中も再生が続き、タイマーも進みます(ロック画面・通知欄から一時停止・次の曲の操作も可能)。YouTubeはYouTube側の仕様により、バックグラウンドでは止まります。BGMが無いあいだは画面ロック中にタイマーが止まって見えますが、画面に戻ると経過時間が正しく反映されます。</li>
         <li><b>免責事項</b>: 本アプリの利用により生じたいかなる損害についても作者は責任を負いません。あらかじめご了承のうえご利用ください。</li>
       </ul>
@@ -1306,7 +1389,8 @@
         <button class="icon-btn" data-close-modal="settingsModal"><i class="fa-solid fa-xmark"></i></button>
       </div>
       
-      <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">タイマー設定</h4>
+      <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">タイマー設定<span class="profile-label" id="timerProfileLabel"></span></h4>
+      <p id="timerProfileNote" style="display: none; font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 8px;">タイマー設定とBGM設定は、選んでいるタスクの設定として自動保存されます。「None」の設定を編集するときは、タスクを「None」にしてください。</p>
       <div class="setting-row"><label>作業時間 (分)</label><input type="number" id="workTimeInput" value="25" min="1"></div>
       <div class="setting-row"><label>短休憩時間 (分)</label><input type="number" id="shortBreakInput" value="5" min="1"></div>
       <div class="setting-row"><label>長休憩時間 (分)</label><input type="number" id="longBreakInput" value="0" min="0"></div>
@@ -1330,6 +1414,22 @@
       <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 4px;">オンにすると、タスク選択が「None」の状態で完了した作業セッションは、統計・記録に一切残りません。気軽に使いたい方向けの設定です。</p>
 
       <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+      <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">タスクごとの設定</h4>
+      <div class="setting-row"><label>タスクごとにタイマー・BGMの設定を保存する</label><input type="checkbox" id="taskProfilesEnabledInput"></div>
+      <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 4px;">オンにすると、作業・休憩の時間、長休憩の間隔、目標ポモドーロ数、BGMをタスクごとに保存し、タスクを選ぶと切り替わります(最初は「None」の設定を複製します)。タスクを切り替えるとポモドーロ数は0からになり、作業の途中なら経過時間を「中断」として記録します。オフにすると「None」の設定をすべてのタスクで使います(タスクの設定は消えずに残ります)。自動開始・通知音などはすべてのタスクで共通です。</p>
+
+      <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+      <!-- 小型タイマー（PCのChrome・Edgeのみ。非対応環境では初期化時にこの区画ごと非表示にする） -->
+      <div id="miniTimerSettingsSection">
+        <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">小型タイマー</h4>
+        <div class="setting-row"><label>小型タイマーのボタンを表示する</label><input type="checkbox" id="miniTimerEnabledInput" checked></div>
+        <div class="setting-row"><label>切り替わりのとき小型タイマーを光らせる</label><input type="checkbox" id="miniTimerFlashInput" checked></div>
+        <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 4px;">他のアプリより手前に表示される小さなタイマーです。端をドラッグして大きさを変えられます(PCのChrome・Edgeのみ)。</p>
+
+        <hr style="border: none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+      </div>
 
       <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">通知音</h4>
       <div class="setting-row"><label>作業・休憩の終了時に音を鳴らす</label><input type="checkbox" id="notificationSoundInput"></div>
@@ -1384,7 +1484,17 @@
       workTime: 25, shortBreak: 5, longBreak: 0, interval: 4, targetPomo: 4,
       autoStartWork: true, autoStartShortBreak: true, autoStartLongBreak: true,
       notificationSound: false, notificationVolume: 20, wakeLockEnabled: true,
-      skipLogWhenNoTask: false
+      skipLogWhenNoTask: false,
+      miniTimerEnabled: true, miniTimerFlash: true,
+      // BGMの再生方法（order: 順番 / shuffle: シャッフル / repeatOne: 1曲リピート）。
+      // 入れ子のオブジェクトなので、変更するときは中身を書き換えず、必ず新しいオブジェクトに置き換える
+      // （書き換えると DEFAULTS 自体が変わってしまうため）
+      playModes: { work: 'order', shortBreak: 'order', longBreak: 'order' },
+      // タスクごとの設定（オフのときは「None」の設定をすべてのタスクで使う）
+      taskProfilesEnabled: false,
+      // 「None」の設定の音源の種類。タスクごとの設定がオンのときだけ保存・復元する
+      // （オフのときは、これまでどおり起動時はYouTubeから始まる）
+      standardSourceType: 'youtube'
     };
     let settings = { ...DEFAULTS };
 
@@ -1436,6 +1546,12 @@
     let savedPositions = {
       local: { work: 0, shortBreak: 0, longBreak: 0 },
       youtube: { work: 0, shortBreak: 0, longBreak: 0 }
+    };
+    // savedPositions がどの曲の再生位置なのか（曲のid）。再開するときに流す曲が別の曲に
+    // 変わっていたら（シャッフルへの切り替え、曲の削除など）、保存した位置は使わず頭から流す
+    let savedPositionTrackIds = {
+      local: { work: null, shortBreak: null, longBreak: null },
+      youtube: { work: null, shortBreak: null, longBreak: null }
     };
 
     // 連続再生失敗をガードするカウンタ（無限ループ防止）
@@ -1596,14 +1712,23 @@
 
     // このセッション内で一度解決した Blob URL をキャッシュしつつ、
     // 未解決なら IndexedDB からファイルを取り出して URL を発行する
+    // 音楽ファイルの再生用URL（blob URL）を曲のidごとに覚えておく。タスクごとの設定を切り替えると
+    // 曲のオブジェクトが作り直されるため、同じファイルのURLを何度も作らないようにここで使い回す
+    const localTrackUrlCache = {};
+
     async function resolveLocalTrackUrl(track) {
       if (track.url) return track.url;
       if (!track.id) return null;
+      if (localTrackUrlCache[track.id]) {
+        track.url = localTrackUrlCache[track.id];
+        return track.url;
+      }
       try {
         const file = await getAudioFile(track.id);
         if (!file) return null;
         const url = URL.createObjectURL(file);
         track.url = url;
+        localTrackUrlCache[track.id] = url;
         return url;
       } catch (e) {
         console.warn('音楽ファイルの読み込みに失敗しました', e);
@@ -1648,19 +1773,12 @@
         // 過去に保存された設定に自動開始のキーがない場合はデフォルト(true)で補う
         settings = { ...DEFAULTS, ...savedSettings };
       }
-      document.getElementById('workTimeInput').value = settings.workTime;
-      document.getElementById('shortBreakInput').value = settings.shortBreak;
-      document.getElementById('longBreakInput').value = settings.longBreak;
-      document.getElementById('longBreakIntervalInput').value = settings.interval;
-      document.getElementById('targetPomoInput').value = settings.targetPomo;
-      document.getElementById('wakeLockEnabledInput').checked = settings.wakeLockEnabled;
-      document.getElementById('autoStartWorkInput').checked = settings.autoStartWork;
-      document.getElementById('autoStartShortInput').checked = settings.autoStartShortBreak;
-      document.getElementById('autoStartLongInput').checked = settings.autoStartLongBreak;
-      document.getElementById('notificationSoundInput').checked = settings.notificationSound;
-      document.getElementById('notificationVolumeInput').value = settings.notificationVolume;
-      document.getElementById('notificationVolumeText').textContent = `${settings.notificationVolume}%`;
-      document.getElementById('skipLogWhenNoTaskInput').checked = settings.skipLogWhenNoTask;
+      // 読み込み直後は「None」の設定が今の設定（インポート時も含めて持ち主をリセットする）
+      profileOwner = null;
+      standardProfile = null;
+      if (settings.taskProfilesEnabled) {
+        sourceType = settings.standardSourceType === 'local' ? 'local' : 'youtube';
+      }
 
       const savedPlaylists = await kvGet('playlists');
       if (savedPlaylists) {
@@ -1678,10 +1796,12 @@
         tasks = savedTasks.map(t => {
           // 古い文字列配列データとの互換性保持
           if (typeof t === 'string') return { name: t, status: 'active' };
+          // タスクごとの設定（profile）は、あればそのまま引き継ぐ
+          const profile = t.profile && typeof t.profile === 'object' ? t.profile : undefined;
           // 新形式（status）は既に対応済みなのでそのまま使う
-          if (t.status) return { name: t.name, status: t.status };
+          if (t.status) return { name: t.name, status: t.status, profile };
           // 旧形式（active: true/false）からの移行。false だったものは完了フォルダへ
-          return { name: t.name, status: t.active ? 'active' : 'completed' };
+          return { name: t.name, status: t.active ? 'active' : 'completed', profile };
         });
       }
 
@@ -1703,23 +1823,56 @@
       }
       // savedSelectedTaskが無い(初回起動時)は selectedTask の初期値(NO_TASK_NAME)のままにする
 
+      // タスクごとの設定がオンなら、設定を持っていないタスクに「None」の設定を複製して持たせ、
+      // 選んでいるタスクの設定に切り替える
+      if (settings.taskProfilesEnabled) {
+        const standard = captureProfile();
+        tasks.forEach(t => { if (!t.profile) t.profile = cloneProfile(standard); });
+        switchProfileOwner(getProfileOwnerFor(selectedTask));
+      }
+      populateSettingsInputs();
+
       await saveStorageData();
+    }
+
+    // 設定画面の入力欄に今の設定を表示する（タスクを切り替えると中身が変わるため、画面を開くたびに呼ぶ）
+    function populateSettingsInputs() {
+      document.getElementById('workTimeInput').value = settings.workTime;
+      document.getElementById('shortBreakInput').value = settings.shortBreak;
+      document.getElementById('longBreakInput').value = settings.longBreak;
+      document.getElementById('longBreakIntervalInput').value = settings.interval;
+      document.getElementById('targetPomoInput').value = settings.targetPomo;
+      document.getElementById('wakeLockEnabledInput').checked = settings.wakeLockEnabled;
+      document.getElementById('autoStartWorkInput').checked = settings.autoStartWork;
+      document.getElementById('autoStartShortInput').checked = settings.autoStartShortBreak;
+      document.getElementById('autoStartLongInput').checked = settings.autoStartLongBreak;
+      document.getElementById('notificationSoundInput').checked = settings.notificationSound;
+      document.getElementById('notificationVolumeInput').value = settings.notificationVolume;
+      document.getElementById('notificationVolumeText').textContent = `${settings.notificationVolume}%`;
+      document.getElementById('miniTimerEnabledInput').checked = settings.miniTimerEnabled;
+      document.getElementById('miniTimerFlashInput').checked = settings.miniTimerFlash;
+      document.getElementById('skipLogWhenNoTaskInput').checked = settings.skipLogWhenNoTask;
+      document.getElementById('taskProfilesEnabledInput').checked = settings.taskProfilesEnabled;
+      updateProfileIndicators();
     }
 
     async function saveStorageData() {
       try {
-        // Blob URL はセッションをまたいで無効になるため保存しない（id のみ保存）
-        const serializablePlaylists = {};
-        for (const mode of Object.keys(playlists)) {
-          serializablePlaylists[mode] = {
-            local: playlists[mode].local.map(t => ({ title: t.title, id: t.id })),
-            youtube: playlists[mode].youtube
-          };
-        }
+        // 今使っている設定を持ち主（タスク）に書き戻してから保存する。
+        // 保存データの settings / playlists には、常に「None」の設定を置く
+        // （オフのとき・古い版との互換性のため）。タスクの設定は tasks の中に入る。
+        syncActiveProfile();
+        const standard = getStandardProfile();
+        const settingsToSave = {
+          ...settings,
+          ...standard.timer,
+          playModes: standard.playModes,
+          standardSourceType: standard.sourceType
+        };
 
         await Promise.all([
-          kvSet('settings', settings),
-          kvSet('playlists', serializablePlaylists),
+          kvSet('settings', settingsToSave),
+          kvSet('playlists', standard.playlists),
           kvSet('tasks', tasks),
           kvSet('logs', logs),
           kvSet('selectedTask', selectedTask)
@@ -1811,6 +1964,7 @@
       timeLeft = settings.workTime * 60;
       totalTime = settings.workTime * 60;
       document.getElementById('targetPomoDisplay').textContent = settings.targetPomo;
+      switchSourceType(sourceType);
       updateTimerUI();
       updateModeTheme();
       renderTaskDropdown();
@@ -1840,10 +1994,8 @@
     // 自分のaudioFilesストアの中身を、現在のplaylistsが参照するidと突き合わせるだけなので、
     // 他のサイトのデータはもちろん、このアプリの他のデータ(kvストア)にも一切触れない。
     async function cleanupOrphanedAudioFiles() {
-      const referenced = new Set();
-      for (const mode of Object.keys(playlists)) {
-        (playlists[mode].local || []).forEach(t => { if (t && t.id) referenced.add(t.id); });
-      }
+      // 今の設定だけでなく、「None」の設定と全タスクの設定から参照されている曲は残す
+      const referenced = getAllReferencedLocalTrackIds();
       let allIds;
       try {
         allIds = await getAllAudioFileIds();
@@ -1861,8 +2013,7 @@
     // インポート後のプレイリストを確認し、IndexedDBに実体が無いローカル音源のタイトル一覧を返す
     async function findMissingLocalAudioTitles() {
       const missing = new Set();
-      for (const mode of Object.keys(playlists)) {
-        const localList = playlists[mode].local || [];
+      for (const localList of getAllLocalTrackLists()) {
         for (const track of localList) {
           if (!track.id) continue;
           try {
@@ -1971,7 +2122,7 @@
                 ytPlayer.setVolume(masterVolume * 100);
               }
             }
-            if (e.data === YT.PlayerState.ENDED) playNextTrack();
+            if (e.data === YT.PlayerState.ENDED) playNextTrack(true);
           },
           'onError': (e) => {
             console.warn('YouTube再生エラー。次のトラックへ移ります', e.data);
@@ -2029,6 +2180,8 @@
       totalTime = settings.workTime * 60;
       document.getElementById('targetPomoDisplay').textContent = settings.targetPomo;
 
+      // タスクごとの設定で音源の種類がローカル音源になっている場合に、ボタンの表示を合わせる
+      switchSourceType(sourceType);
       renderTaskDropdown();
       renderActiveTaskManageList();
       renderCompletedTaskList();
@@ -2044,8 +2197,19 @@
       updateMediaSession();
 
       document.getElementById('startPauseBtn').addEventListener('click', toggleTimer);
+      document.getElementById('nextTrackBtn').addEventListener('click', skipToNextTrack);
+      document.getElementById('playModeBtn').addEventListener('click', cyclePlayMode);
+      document.getElementById('miniTimerBtn').addEventListener('click', toggleMiniTimer);
+      // 小型タイマーに対応していない環境（スマホ、Firefox、Safariなど）では設定項目ごと隠す
+      if (!isMiniTimerSupported()) {
+        document.getElementById('miniTimerSettingsSection').style.display = 'none';
+      }
+      updateMiniTimerBtn();
 
-      document.getElementById('openSettingsBtn').addEventListener('click', () => openModal('settingsModal'));
+      document.getElementById('openSettingsBtn').addEventListener('click', () => {
+        populateSettingsInputs();
+        openModal('settingsModal');
+      });
       document.getElementById('openAnalyticsBtn').addEventListener('click', () => {
         openModal('analyticsModal');
         renderCalendar();
@@ -2129,7 +2293,7 @@
         if (localAudio.duration) {
           const seekTo = (e.target.value / 100) * localAudio.duration;
           localAudio.currentTime = seekTo;
-          savedPositions.local[currentMode] = seekTo;
+          setSavedPosition('local', currentMode, seekTo);
         }
       });
 
@@ -2151,7 +2315,7 @@
               audio.duration && !audio.paused && !audio._preEndHandoffDone &&
               audio.duration - audio.currentTime < ANDROID_PRE_END_HANDOFF_SEC) {
             audio._preEndHandoffDone = true;
-            playNextTrack();
+            playNextTrack(true);
           }
         });
         audio.addEventListener('loadedmetadata', () => {
@@ -2161,7 +2325,7 @@
         audio.addEventListener('ended', () => {
           if (audio !== localAudio) return;
           savedPositions.local[currentMode] = 0;
-          playNextTrack();
+          playNextTrack(true);
         });
         // 再生開始に成功したらスキップカウンタをリセット
         audio.addEventListener('playing', () => {
@@ -2235,6 +2399,7 @@
         document.getElementById('bgmTabsArea'), document.getElementById('sourceSelectorArea'),
         document.getElementById('fileDropArea'), document.getElementById('ytInputArea'),
         document.getElementById('ytPresetsArea'), document.getElementById('activeTaskSelect'),
+        document.getElementById('playModeBtn'),
         // 作業中・休憩中はモーダルを開けないようにする。
         // これにより、モーダルのオーバーレイが再生中のYouTubeプレイヤーを覆う状況自体が起こらなくなる
         document.getElementById('openAnalyticsBtn'), document.getElementById('openTasksBtn'),
@@ -2284,7 +2449,7 @@
       try {
         const modeLabel = currentMode === 'work' ? '作業中' : currentMode === 'shortBreak' ? '短休憩中' : '長休憩中';
         const list = playlists[currentMode] && playlists[currentMode][sourceType];
-        const track = list && list.length ? list[currentTrackIndex[currentMode] % list.length] : null;
+        const track = list && list.length ? list[getCurrentTrackListIndex(currentMode, list)] : null;
         navigator.mediaSession.metadata = new MediaMetadata({
           title: track ? track.title : modeLabel,
           artist: `${modeLabel} - ${BASE_TITLE}`
@@ -2300,7 +2465,7 @@
       const handlers = {
         play: () => { if (!isRunning) startTimer(); },
         pause: () => { if (isRunning) pauseTimer(); },
-        nexttrack: () => { if (isRunning) playNextTrack(); updateMediaSession(); }
+        nexttrack: () => skipToNextTrack()
       };
       Object.entries(handlers).forEach(([action, fn]) => {
         try { navigator.mediaSession.setActionHandler(action, fn); } catch (e) { /* 未対応の操作は無視 */ }
@@ -2358,6 +2523,7 @@
 
       if (timeLeft <= 5 && !isFadingOut) {
         isFadingOut = true;
+        updateNextTrackBtn(); // フェードアウト中は「次の曲」を押せなくする
         fadeOutBgm(5000);
       }
 
@@ -2474,6 +2640,8 @@
       const outerFraction = Math.min(1, outerElapsedSeconds / outerTotal);
       document.getElementById('outerProgressCircle').style.strokeDashoffset = OUTER_CIRCUMFERENCE * (1 - outerFraction);
       document.getElementById('outerElapsedLabel').textContent = formatTime(outerElapsedSeconds);
+
+      updateMiniTimer();
     }
 
     function updateModeTheme() {
@@ -2489,15 +2657,35 @@
         root.style.setProperty('--current-accent', 'var(--accent-long)');
         label.textContent = '長休憩中';
       }
+      updateNextTrackBtn(); // モードが変わると対象のプレイリストも変わるため
     }
 
     // --- 音源再生・フェード処理 ---
     function saveCurrentPosition() {
       if (sourceType === 'local') {
-        savedPositions.local[currentMode] = localAudio.currentTime;
+        setSavedPosition('local', currentMode, localAudio.currentTime);
       } else if (sourceType === 'youtube' && ytPlayer && isYtReady && typeof ytPlayer.getCurrentTime === 'function') {
-        savedPositions.youtube[currentMode] = ytPlayer.getCurrentTime();
+        setSavedPosition('youtube', currentMode, ytPlayer.getCurrentTime());
       }
+    }
+
+    // 今のモード・音源で流している曲（プレイリスト上の曲）を返す
+    function getCurrentPlaylistTrack(mode, source) {
+      const list = playlists[mode] && playlists[mode][source];
+      return list && list.length ? list[getCurrentTrackListIndex(mode, list)] : null;
+    }
+
+    // 再生位置を、どの曲の位置かと一緒に保存する
+    function setSavedPosition(source, mode, seconds) {
+      const track = getCurrentPlaylistTrack(mode, source);
+      savedPositions[source][mode] = seconds || 0;
+      savedPositionTrackIds[source][mode] = track ? track.id : null;
+    }
+
+    // これから流す曲の再開位置を返す。保存した位置が別の曲のものなら 0（頭から）にする
+    function getSavedPosition(source, mode, track) {
+      if (!track || savedPositionTrackIds[source][mode] !== track.id) return 0;
+      return savedPositions[source][mode] || 0;
     }
 
     // 再生に失敗した場合、無限ループしない範囲で自動的に次の曲へスキップする
@@ -2517,7 +2705,7 @@
       // （iPhone・Androidではセッション切り替え時に前の曲を止めずにおくため）
       if (!list || list.length === 0) { localAudio.pause(); updateMediaSession(); return; }
 
-      const idx = currentTrackIndex[currentMode] % list.length;
+      const idx = getCurrentTrackListIndex(currentMode, list);
       const track = list[idx];
 
       if (sourceType === 'local') {
@@ -2527,12 +2715,12 @@
         if (!url) { handlePlaybackFailure(); return; }
 
         if (shouldHandoffLocalAudio(url)) {
-          handoffLocalAudio(url, savedPositions.local[currentMode] || 0, 0);
+          handoffLocalAudio(url, getSavedPosition('local', currentMode, track), 0);
           return;
         }
         if (localAudio.src !== url) {
           localAudio.src = url;
-          localAudio.currentTime = savedPositions.local[currentMode] || 0;
+          localAudio.currentTime = getSavedPosition('local', currentMode, track);
           localAudio._preEndHandoffDone = false;
         }
         localAudio.volume = masterVolume;
@@ -2540,7 +2728,7 @@
 
       } else if (sourceType === 'youtube') {
         localAudio.pause();
-        playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, 0);
+        playYoutubeTrack(track, getSavedPosition('youtube', currentMode, track), 0);
       }
     }
 
@@ -2551,7 +2739,7 @@
       // （iPhone・Androidではセッション切り替え時に前の曲を止めずにおくため）
       if (!list || list.length === 0) { localAudio.pause(); updateMediaSession(); return; }
 
-      const idx = currentTrackIndex[currentMode] % list.length;
+      const idx = getCurrentTrackListIndex(currentMode, list);
       const track = list[idx];
 
       if (sourceType === 'local') {
@@ -2561,12 +2749,12 @@
         if (!url) { handlePlaybackFailure(); return; }
 
         if (shouldHandoffLocalAudio(url)) {
-          handoffLocalAudio(url, savedPositions.local[currentMode] || 0, durationMs);
+          handoffLocalAudio(url, getSavedPosition('local', currentMode, track), durationMs);
           return;
         }
         if (localAudio.src !== url) {
           localAudio.src = url;
-          localAudio.currentTime = savedPositions.local[currentMode] || 0;
+          localAudio.currentTime = getSavedPosition('local', currentMode, track);
           localAudio._preEndHandoffDone = false;
         }
 
@@ -2577,7 +2765,7 @@
 
       } else if (sourceType === 'youtube') {
         localAudio.pause();
-        playYoutubeTrack(track, savedPositions.youtube[currentMode] || 0, durationMs);
+        playYoutubeTrack(track, getSavedPosition('youtube', currentMode, track), durationMs);
       }
     }
 
@@ -2799,10 +2987,277 @@
       }
     }
 
-    function playNextTrack() {
-      currentTrackIndex[currentMode]++;
+    // 次の曲へ進む。isNaturalEnd は「曲が最後まで流れ終わった」ときに true。
+    // 1曲リピートのときは、自然に終わったときだけ同じ曲を頭から流し直す
+    // （「次の曲」ボタンや再生失敗のときは、1曲リピートでも次の曲へ進む）。
+    function playNextTrack(isNaturalEnd = false) {
       savedPositions[sourceType][currentMode] = 0;
+
+      if (isNaturalEnd && getPlayMode(currentMode) === 'repeatOne') {
+        if (!isRunning) return;
+        // 同じ要素のまま頭に戻して鳴らし続ける（音を途切れさせないので、Androidの画面オフ中でも止められない）
+        if (sourceType === 'local' && localAudio.src) {
+          localAudio.currentTime = 0;
+          localAudio._preEndHandoffDone = false;
+          if (localAudio.paused) localAudio.play().catch(() => handlePlaybackFailure());
+          return;
+        }
+        if (sourceType === 'youtube' && ytPlayer && isYtReady && typeof ytPlayer.seekTo === 'function') {
+          ytPlayer.seekTo(0, true);
+          ytPlayer.playVideo();
+          return;
+        }
+        playBgmWithFadeIn(1000);
+        return;
+      }
+
+      const list = playlists[currentMode][sourceType];
+      const prevListIndex = list && list.length ? getCurrentTrackListIndex(currentMode, list) : -1;
+      currentTrackIndex[currentMode]++;
+      // シャッフルで1周したら、並び順を作り直す（直前の曲がすぐまた流れないようにする）
+      if (getPlayMode(currentMode) === 'shuffle' && list && list.length &&
+          currentTrackIndex[currentMode] % list.length === 0) {
+        shuffleOrders[currentMode] = makeShuffleOrder(list.length, prevListIndex);
+      }
+      // 次の曲が今と同じ曲になる場合（1曲だけのプレイリストなど）は、曲を読み込み直さないため
+      // 再生位置がそのままになってしまう。ここで頭に戻しておく（YouTubeは読み込み直すので不要）
+      if (sourceType === 'local' && list && list.length &&
+          getCurrentTrackListIndex(currentMode, list) === prevListIndex) {
+        localAudio.currentTime = 0;
+        localAudio._preEndHandoffDone = false;
+      }
       if (isRunning) playBgmWithFadeIn(1000);
+    }
+
+    // --- 再生方法（順番 / シャッフル / 1曲リピート） ---
+    const PLAY_MODES = ['order', 'shuffle', 'repeatOne'];
+    const PLAY_MODE_LABELS = {
+      order: { icon: 'fa-solid fa-arrow-right', text: '順番' },
+      shuffle: { icon: 'fa-solid fa-shuffle', text: 'シャッフル' },
+      repeatOne: { icon: 'fa-solid fa-repeat repeat-one', text: '1曲リピート' }
+    };
+    // シャッフル時の再生順（プレイリスト内の番号の並び）。モードごとに持つ
+    let shuffleOrders = { work: [], shortBreak: [], longBreak: [] };
+
+    function getPlayMode(mode) {
+      const m = settings.playModes && settings.playModes[mode];
+      return PLAY_MODES.includes(m) ? m : 'order';
+    }
+
+    // 0〜n-1 をランダムに並べ替えた配列を作る。avoidFirst を指定すると、その番号が先頭に来ないようにする
+    function makeShuffleOrder(n, avoidFirst = -1) {
+      const order = Array.from({ length: n }, (_, i) => i);
+      for (let i = n - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      if (n > 1 && order[0] === avoidFirst) [order[0], order[1]] = [order[1], order[0]];
+      return order;
+    }
+
+    // 今流す曲が、プレイリストの何番目かを返す（順番・1曲リピートはそのまま、シャッフルは並び順を通す）
+    function getCurrentTrackListIndex(mode, list) {
+      const n = list.length;
+      const pos = currentTrackIndex[mode] % n;
+      if (getPlayMode(mode) !== 'shuffle') return pos;
+      // 曲の追加・削除で曲数が変わったら、並び順を作り直す
+      if (shuffleOrders[mode].length !== n) shuffleOrders[mode] = makeShuffleOrder(n);
+      return shuffleOrders[mode][pos];
+    }
+
+    // ボタンを押すたびに 順番 → シャッフル → 1曲リピート → 順番… と切り替える（表示中のタブのモードが対象）
+    function cyclePlayMode() {
+      if (isRunning) return;
+      const current = getPlayMode(activeTab);
+      const next = PLAY_MODES[(PLAY_MODES.indexOf(current) + 1) % PLAY_MODES.length];
+      settings.playModes = { ...settings.playModes, [activeTab]: next };
+      if (next === 'shuffle') shuffleOrders[activeTab] = []; // シャッフルにしたら新しい並び順で始める
+      saveStorageData();
+      renderPlayModeBtn();
+    }
+
+    function renderPlayModeBtn() {
+      const btn = document.getElementById('playModeBtn');
+      if (!btn) return;
+      const label = PLAY_MODE_LABELS[getPlayMode(activeTab)];
+      btn.innerHTML = `<i class="${label.icon}"></i><span>${label.text}</span>`;
+      btn.disabled = isRunning;
+    }
+
+    // --- 「次の曲」ボタン（タイマー画面・ロック画面共通） ---
+    // タイマー実行中で、今のモードのプレイリストに曲があるときだけ次の曲へ進める。
+    // セッション終了前のフェードアウト中は、休憩への切り替え処理と重ならないよう受け付けない。
+    function canSkipToNextTrack() {
+      const list = playlists[currentMode] && playlists[currentMode][sourceType];
+      return isRunning && !isFadingOut && !!list && list.length > 0;
+    }
+
+    function skipToNextTrack() {
+      if (!canSkipToNextTrack()) return;
+      playNextTrack();
+      updateMediaSession();
+    }
+
+    function updateNextTrackBtn() {
+      const btn = document.getElementById('nextTrackBtn');
+      if (btn) btn.disabled = !canSkipToNextTrack();
+      updateMiniTimer(); // 小型タイマー側の「次の曲」ボタンもそろえる
+    }
+
+    // --- 小型タイマー（Document Picture-in-Picture） ---
+    // PCのChrome・Edgeで、他のアプリやブラウザより常に手前に表示される小さなウィンドウを開く。
+    // ユーザーが端をドラッグして大きさを変えられるので、文字やボタンはウィンドウの大きさに合わせて拡大縮小する。
+    // ブラウザの制限により、ボタンを押したとき（ユーザー操作）にしか開けない。
+    let miniWin = null;
+    let miniLastMode = null; // 切り替わり（光らせる処理）を検出するため、前回表示したモードを覚えておく
+
+    const MINI_TIMER_CSS = `
+      html, body { margin: 0; height: 100%; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+        background: var(--mini-accent, #ff453a);
+        color: #fff;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: min(2.5vh, 10px);
+        overflow: hidden; user-select: none;
+        transition: background-color 0.4s ease;
+      }
+      #miniMode { font-size: clamp(11px, min(6.5vw, 11vh), 44px); font-weight: 600; opacity: 0.9; }
+      #miniTime {
+        font-size: clamp(28px, min(27vw, 40vh), 420px); font-weight: 700; line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+      #miniTask {
+        font-size: clamp(10px, min(5.5vw, 9vh), 34px); opacity: 0.85;
+        max-width: 92vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .mini-controls { display: flex; gap: min(5vw, 28px); margin-top: min(1.5vh, 6px); }
+      .mini-controls button {
+        width: clamp(28px, min(13vw, 19vh), 96px); height: clamp(28px, min(13vw, 19vh), 96px);
+        border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.85);
+        background: rgba(255, 255, 255, 0.15); color: #fff; cursor: pointer;
+        font-size: clamp(11px, min(5vw, 8vh), 38px);
+        display: flex; align-items: center; justify-content: center;
+      }
+      .mini-controls button:active { transform: scale(0.92); }
+      .mini-controls button:disabled { opacity: 0.35; cursor: default; transform: none; }
+      /* 作業⇔休憩の切り替わりのとき、ウィンドウ全体を白く3回光らせる */
+      body.flash::after {
+        content: ''; position: fixed; inset: 0; background: #fff; pointer-events: none;
+        opacity: 0; /* アニメーションが終わったあとは透明のまま残す */
+        animation: miniFlash 0.8s ease-in-out 3;
+      }
+      @keyframes miniFlash { 0% { opacity: 0; } 25% { opacity: 0.85; } 100% { opacity: 0; } }
+    `;
+
+    function isMiniTimerSupported() {
+      return 'documentPictureInPicture' in window && !isIOS() && !isAndroid();
+    }
+
+    function updateMiniTimerBtn() {
+      const btn = document.getElementById('miniTimerBtn');
+      if (!btn) return;
+      const show = isMiniTimerSupported() && settings.miniTimerEnabled;
+      btn.style.visibility = show ? 'visible' : 'hidden';
+      btn.classList.toggle('active', !!miniWin);
+      const label = miniWin ? '小型タイマーを閉じる' : '小型タイマーを開く';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
+    }
+
+    // ボタンを押すたびに開く/閉じるを切り替える
+    function toggleMiniTimer() {
+      if (miniWin) closeMiniTimer();
+      else openMiniTimer();
+    }
+
+    function closeMiniTimer() {
+      if (miniWin) miniWin.close(); // 閉じると pagehide が発火し、そこで後片付けする
+    }
+
+    async function openMiniTimer() {
+      if (!isMiniTimerSupported() || !settings.miniTimerEnabled || miniWin) return;
+      let win;
+      try {
+        // 大きさの指定は初回のみ有効。2回目以降はブラウザが前回の大きさ・位置を覚えている
+        win = await documentPictureInPicture.requestWindow({ width: 280, height: 200 });
+      } catch (e) {
+        console.warn('小型タイマーを開けませんでした', e);
+        return;
+      }
+      miniWin = win;
+      const doc = win.document;
+      doc.title = '小型タイマー';
+
+      const style = doc.createElement('style');
+      style.textContent = MINI_TIMER_CSS;
+      doc.head.appendChild(style);
+      // アイコン(Font Awesome)はメインのページと同じものを読み込む
+      const fa = document.querySelector('link[href*="font-awesome"]');
+      if (fa) doc.head.appendChild(fa.cloneNode());
+
+      doc.body.innerHTML = `
+        <div id="miniMode"></div>
+        <div id="miniTime"></div>
+        <div id="miniTask"></div>
+        <div class="mini-controls">
+          <button id="miniPlayBtn" title="スタート/一時停止" aria-label="スタート/一時停止"><i class="fa-solid fa-play"></i></button>
+          <button id="miniNextBtn" title="次の曲" aria-label="次の曲"><i class="fa-solid fa-forward-step"></i></button>
+        </div>`;
+      doc.getElementById('miniPlayBtn').addEventListener('click', toggleTimer);
+      doc.getElementById('miniNextBtn').addEventListener('click', skipToNextTrack);
+
+      // メインのタブが裏にあるとき（BGMが無いとき）は、ブラウザがメイン側のタイマー処理を
+      // 大きく間引くことがある。小型タイマーのウィンドウは常に表示されていて間引かれないので、
+      // こちらからもタイマーを進める（実時間差分で計算しているので二重に進むことはない）
+      win.setInterval(() => { if (isRunning) timerTick(); }, 1000);
+
+      win.addEventListener('pagehide', () => {
+        miniWin = null;
+        miniLastMode = null;
+        updateMiniTimerBtn();
+      });
+
+      miniLastMode = currentMode;
+      updateMiniTimer();
+      updateMiniTimerBtn();
+    }
+
+    // 小型タイマーの表示を、今のタイマーの状態に合わせて更新する（開いていなければ何もしない）
+    function updateMiniTimer() {
+      if (!miniWin) return;
+      const doc = miniWin.document;
+      const timeEl = doc.getElementById('miniTime');
+      if (!timeEl) return;
+
+      const modeLabel = currentMode === 'work' ? '作業中' : currentMode === 'shortBreak' ? '短休憩中' : '長休憩中';
+      doc.getElementById('miniMode').textContent = isRunning ? modeLabel : `${modeLabel}・一時停止`;
+
+      const displaySec = Math.max(0, Math.round(timeLeft));
+      const mins = Math.floor(displaySec / 60), secs = displaySec % 60;
+      timeEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+      // タスクが「None」のときはタスク名の行を出さない
+      const taskEl = doc.getElementById('miniTask');
+      const hasTask = selectedTask && selectedTask !== NO_TASK_NAME;
+      taskEl.textContent = hasTask ? selectedTask : '';
+      taskEl.style.display = hasTask ? '' : 'none';
+
+      doc.querySelector('#miniPlayBtn i').className = isRunning ? 'fa-solid fa-pause' : 'fa-solid fa-play';
+      doc.getElementById('miniNextBtn').disabled = !canSkipToNextTrack();
+
+      // 背景はメインの画面と同じモードの色にする
+      const accentVar = currentMode === 'work' ? '--accent-work' : currentMode === 'shortBreak' ? '--accent-short' : '--accent-long';
+      const accent = getComputedStyle(document.documentElement).getPropertyValue(accentVar).trim();
+      doc.body.style.setProperty('--mini-accent', accent);
+
+      // モードが切り替わったら光らせる（クラスを付け直してアニメーションを最初から再生する）
+      if (miniLastMode && miniLastMode !== currentMode && settings.miniTimerFlash) {
+        doc.body.classList.remove('flash');
+        void doc.body.offsetWidth;
+        doc.body.classList.add('flash');
+      }
+      miniLastMode = currentMode;
     }
 
     // --- UI切り替え ---
@@ -2905,18 +3360,24 @@
     async function removeTrack(idx) {
       if (isRunning) return;
       const track = playlists[activeTab][sourceType][idx];
-      if (sourceType === 'local' && track) {
-        if (track.url) URL.revokeObjectURL(track.url);
-        if (track.id) {
-          try { await deleteAudioFile(track.id); } catch (e) { console.warn(e); }
-        }
-      }
       playlists[activeTab][sourceType].splice(idx, 1);
+      // 同じ音楽ファイルを他のタブや他のタスクの設定でも使っている場合は、ファイルを消さない
+      if (sourceType === 'local' && track && track.id && !getAllReferencedLocalTrackIds().has(track.id)) {
+        const url = track.url || localTrackUrlCache[track.id];
+        if (url) URL.revokeObjectURL(url);
+        delete localTrackUrlCache[track.id];
+        try { await deleteAudioFile(track.id); } catch (e) { console.warn(e); }
+      }
       saveStorageData();
       renderPlaylists();
     }
 
     function renderPlaylists() {
+      // 開始/一時停止・曲の追加削除・音源の種類の切り替えのたびにここが呼ばれるので、
+      // 「次の曲」ボタンの押せる/押せないもあわせて更新する
+      updateNextTrackBtn();
+      renderPlayModeBtn(); // 表示中のタブの再生方法を表示する
+      updateProfileIndicators(); // どのタスクの設定を表示・編集しているか
       const list = playlists[activeTab][sourceType];
       const container = document.getElementById('playlistItems');
       container.innerHTML = '';
@@ -2936,6 +3397,246 @@
 
         container.appendChild(li);
       });
+    }
+
+    // --- タスクごとの設定 ---
+    // オンのときは、タスクごとに「作業・休憩の時間、長休憩の間隔、目標ポモドーロ数、BGM」を持ち、
+    // 選んでいるタスクの設定に自動保存する。画面や再生の処理は今までどおり
+    // settings / playlists / sourceType（＝今使っている設定）だけを見ており、
+    // タスクを切り替えるときにその中身を入れ替える。
+    // 「None」の設定は、保存データの settings / playlists に置く（オフのときはこれだけを使う）。
+    const PROFILE_TIMER_KEYS = ['workTime', 'shortBreak', 'longBreak', 'interval', 'targetPomo'];
+    let profileOwner = null;    // 今の設定の持ち主（null =「None」の設定、文字列 = タスク名）
+    let standardProfile = null; // 持ち主がタスクのあいだ、「None」の設定をここに退避しておく
+
+    // プレイリストを保存用の形にする（blob URL はセッションをまたいで無効になるため id のみ残す）
+    function serializePlaylists(src) {
+      const result = {};
+      for (const mode of Object.keys(src)) {
+        result[mode] = {
+          local: (src[mode].local || []).map(t => ({ title: t.title, id: t.id })),
+          youtube: (src[mode].youtube || []).map(t => ({ ...t }))
+        };
+      }
+      return result;
+    }
+
+    function cloneProfile(profile) {
+      return JSON.parse(JSON.stringify(profile));
+    }
+
+    // 今使っている設定を、タスクの設定の形で取り出す
+    function captureProfile() {
+      const timer = {};
+      PROFILE_TIMER_KEYS.forEach(k => { timer[k] = settings[k]; });
+      return {
+        timer,
+        playModes: { ...settings.playModes },
+        sourceType,
+        playlists: serializePlaylists(playlists)
+      };
+    }
+
+    // タスクの設定を、今使っている設定に読み込む
+    function applyProfile(profile) {
+      PROFILE_TIMER_KEYS.forEach(k => {
+        if (profile.timer && profile.timer[k] !== undefined) settings[k] = profile.timer[k];
+      });
+      settings.playModes = { ...DEFAULTS.playModes, ...(profile.playModes || {}) };
+      sourceType = profile.sourceType === 'local' ? 'local' : 'youtube';
+      for (const mode of Object.keys(playlists)) {
+        const src = (profile.playlists && profile.playlists[mode]) || {};
+        playlists[mode] = {
+          local: (src.local || []).filter(t => t && t.id).map(t => ({ title: t.title, id: t.id })),
+          youtube: (src.youtube || []).map(t => ({ ...t }))
+        };
+      }
+    }
+
+    function findTaskByName(name) {
+      return tasks.find(t => t.name === name);
+    }
+
+    // 指定したタスクを選んだときに使う設定の持ち主（オフのときや「None」のときは null）
+    function getProfileOwnerFor(taskName) {
+      if (!settings.taskProfilesEnabled || taskName === NO_TASK_NAME) return null;
+      return findTaskByName(taskName) ? taskName : null;
+    }
+
+    // 「None」の設定（持ち主がタスクなら退避しておいたもの、そうでなければ今の設定）
+    function getStandardProfile() {
+      return profileOwner && standardProfile ? standardProfile : captureProfile();
+    }
+
+    // 今使っている設定を、持ち主のタスクに書き戻す（自動保存）
+    function syncActiveProfile() {
+      if (!profileOwner) return;
+      const task = findTaskByName(profileOwner);
+      if (task) task.profile = captureProfile();
+    }
+
+    // 今の設定の持ち主を切り替える（タイマーのセッションのやり直しは呼び出し側で行う）
+    function switchProfileOwner(newOwner) {
+      if (newOwner === profileOwner) return;
+      syncActiveProfile();
+      const standard = getStandardProfile();
+      if (newOwner) {
+        const task = findTaskByName(newOwner);
+        if (!task.profile) task.profile = cloneProfile(standard);
+        standardProfile = standard;
+        applyProfile(task.profile);
+      } else {
+        applyProfile(standard);
+        standardProfile = null;
+      }
+      profileOwner = newOwner;
+    }
+
+    // 「None」の設定と、全タスクの設定に入っているローカル音源の一覧（ファイルの後片付けに使う）
+    function getAllLocalTrackLists() {
+      const lists = [];
+      const addFrom = (pl) => {
+        if (!pl) return;
+        for (const mode of Object.keys(pl)) lists.push((pl[mode] && pl[mode].local) || []);
+      };
+      addFrom(playlists);
+      if (standardProfile) addFrom(standardProfile.playlists);
+      tasks.forEach(t => {
+        // 今の設定の持ち主のタスクは、上の playlists（今の設定）が最新なので重ねて見る必要はない
+        if (t.profile && t.name !== profileOwner) addFrom(t.profile.playlists);
+      });
+      return lists;
+    }
+
+    function getAllReferencedLocalTrackIds() {
+      const ids = new Set();
+      getAllLocalTrackLists().forEach(list => list.forEach(t => { if (t && t.id) ids.add(t.id); }));
+      return ids;
+    }
+
+    // 作業・休憩の途中（一時停止中）かどうか
+    function isSessionInProgress() {
+      return timeLeft < totalTime - 0.5;
+    }
+
+    // 作業の途中でやめた場合に、経過した時間を「中断」として前のタスクに記録する（1分未満は記録しない）。
+    // ポモドーロ数（完了した作業セッション数）には数えない
+    function recordInterruptedWork(taskName) {
+      if (currentMode !== 'work') return;
+      const elapsedSec = Math.max(0, totalTime - timeLeft);
+      const minutes = Math.round(elapsedSec / 60);
+      if (minutes < 1) return;
+      if (taskName === NO_TASK_NAME && settings.skipLogWhenNoTask) return;
+
+      const today = getTodayKey();
+      if (!logs[today]) logs[today] = { sessions: 0, workMinutes: 0, shortBreaks: 0, longBreaks: 0, taskTime: {}, taskSessions: {}, entries: [] };
+      if (!logs[today].entries) logs[today].entries = [];
+      if (!logs[today].taskTime) logs[today].taskTime = {};
+      logs[today].workMinutes += minutes;
+      logs[today].taskTime[taskName] = (logs[today].taskTime[taskName] || 0) + minutes;
+      const end = Date.now();
+      const start = workSessionStartTime || (end - elapsedSec * 1000);
+      logs[today].entries.push({ task: taskName, start, end, minutes, interrupted: true });
+    }
+
+    // タスクを切り替えたときに、ポモドーロ数・外側の円・残り時間・BGMの位置を最初からにする
+    function resetSessionForNewTask() {
+      pauseBgmDirect();
+      currentMode = 'work';
+      activeTab = 'work';
+      document.querySelectorAll('.bgm-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === 'work');
+      });
+      pomoCount = 0;
+      document.getElementById('currentPomo').textContent = pomoCount;
+      outerElapsedSeconds = 0;
+      totalTime = settings.workTime * 60;
+      timeLeft = totalTime;
+      workSessionStartTime = null;
+      isFadingOut = false;
+      for (const src of ['local', 'youtube']) {
+        for (const mode of ['work', 'shortBreak', 'longBreak']) {
+          savedPositions[src][mode] = 0;
+          savedPositionTrackIds[src][mode] = null;
+        }
+      }
+      currentTrackIndex = { work: 0, shortBreak: 0, longBreak: 0 };
+      shuffleOrders = { work: [], shortBreak: [], longBreak: [] };
+      skipAttempts = { work: 0, shortBreak: 0, longBreak: 0 };
+      document.getElementById('targetPomoDisplay').textContent = settings.targetPomo;
+      switchSourceType(sourceType); // 音源の種類のボタン表示とプレイリストを描き直す
+      updateModeTheme();
+      updateTimerUI();
+      updateMediaSession();
+    }
+
+    // タスクの切り替えやオン/オフで、今の設定の持ち主が変わるときの共通処理。
+    // 一時停止中のセッションがあれば確認し（askConfirm が true のとき）、作業の途中なら経過時間を
+    // 前のタスクに「中断」として記録してから、新しい設定の作業セッションの最初から始め直す。
+    // 確認でキャンセルされたら false を返す（何も変更しない）。
+    function changeProfileWithSessionReset(newOwner, prevTaskName, askConfirm) {
+      if (newOwner === profileOwner) return true;
+      if (askConfirm && isSessionInProgress()) {
+        let message;
+        if (currentMode === 'work') {
+          const minutes = Math.round(Math.max(0, totalTime - timeLeft) / 60);
+          // 「Noneのときは記録しない」設定がオンなら、Noneの作業は中断しても記録しない
+          const skipLogging = prevTaskName === NO_TASK_NAME && settings.skipLogWhenNoTask;
+          const recordNote =
+            minutes < 1 ? '経過した時間は1分未満のため記録されません。' :
+            skipLogging ? `「${NO_TASK_NAME}」の作業は記録しない設定のため、経過した${minutes}分は記録されません。` :
+            `経過した${minutes}分は「中断」として記録されます。`;
+          message = `今の作業セッション（${prevTaskName}・${minutes}分経過）を中断して、新しい設定の作業から始め直します。\n` +
+            recordNote + '\n\nよろしいですか？';
+        } else {
+          message = '今の休憩を終了して、新しい設定の作業から始め直します。\n\nよろしいですか？';
+        }
+        if (!confirm(message)) return false;
+      }
+      if (isSessionInProgress()) recordInterruptedWork(prevTaskName);
+      switchProfileOwner(newOwner);
+      resetSessionForNewTask();
+      return true;
+    }
+
+    // タスクの設定を、今の「None」の設定で上書きする（タスク管理画面のボタン）
+    function resetTaskProfileToStandard(idx) {
+      const task = tasks[idx];
+      const isActiveOwner = profileOwner === task.name;
+      const ok = confirm(
+        `「${task.name}」の設定（タイマーの時間・BGM）を、今の「None」の設定で上書きします。` +
+        (isActiveOwner ? '\n今選んでいるタスクのため、今のセッションは最初からになります。' : '') +
+        '\n\nよろしいですか？'
+      );
+      if (!ok) return;
+      const standard = cloneProfile(getStandardProfile());
+      if (isActiveOwner) {
+        if (isSessionInProgress()) recordInterruptedWork(task.name);
+        task.profile = standard;
+        applyProfile(standard);
+        resetSessionForNewTask();
+      } else {
+        task.profile = standard;
+      }
+      saveStorageData();
+      renderActiveTaskManageList();
+    }
+
+    // 今どのタスクの設定を使っているかの表示（タスク選択の横、BGM設定の見出し、設定画面の見出し）
+    function updateProfileIndicators() {
+      const enabled = settings.taskProfilesEnabled;
+      const ownerName = profileOwner || NO_TASK_NAME;
+      const badge = document.getElementById('taskProfileBadge');
+      if (badge) {
+        badge.style.display = enabled ? '' : 'none';
+        badge.textContent = `🎛 ${ownerName}の設定`;
+      }
+      const bgmLabel = document.getElementById('bgmProfileLabel');
+      if (bgmLabel) bgmLabel.textContent = enabled ? `（${ownerName}の設定）` : '';
+      const timerLabel = document.getElementById('timerProfileLabel');
+      if (timerLabel) timerLabel.textContent = enabled ? `（${ownerName}の設定）` : '';
+      const timerNote = document.getElementById('timerProfileNote');
+      if (timerNote) timerNote.style.display = enabled ? '' : 'none';
     }
 
     // --- タスク管理 ---
@@ -2982,6 +3683,15 @@
         editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
         editBtn.addEventListener('click', () => renameTask(idx));
         actions.appendChild(editBtn);
+
+        if (settings.taskProfilesEnabled) {
+          const resetBtn = document.createElement('button');
+          resetBtn.className = 'edit-btn';
+          resetBtn.title = 'Noneの設定に戻す';
+          resetBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i>';
+          resetBtn.addEventListener('click', () => resetTaskProfileToStandard(idx));
+          actions.appendChild(resetBtn);
+        }
 
         const btn = document.createElement('button');
         btn.className = 'complete-btn';
@@ -3059,8 +3769,18 @@
     }
 
     function onTaskChange() {
-      selectedTask = document.getElementById('activeTaskSelect').value;
+      const select = document.getElementById('activeTaskSelect');
+      const newTask = select.value;
+      // タスクごとの設定がオンなら、新しいタスクの設定に切り替える（キャンセルされたら選択を元に戻す）
+      if (settings.taskProfilesEnabled &&
+          !changeProfileWithSessionReset(getProfileOwnerFor(newTask), selectedTask, true)) {
+        select.value = selectedTask;
+        return;
+      }
+      selectedTask = newTask;
       saveStorageData();
+      updateProfileIndicators();
+      updateMiniTimer(); // 小型タイマーのタスク名も更新する
     }
 
     function addNewTask() {
@@ -3082,10 +3802,17 @@
       if (existing) {
         existing.status = 'active';
       } else {
-        tasks.push({ name: name, status: 'active' });
+        const newTask = { name: name, status: 'active' };
+        if (settings.taskProfilesEnabled) newTask.profile = cloneProfile(getStandardProfile());
+        tasks.push(newTask);
       }
-      selectedTask = name;
       input.value = '';
+      // 作ったタスクを選ぶ。オンで設定の切り替えがキャンセルされたら、作るだけで選ばない
+      if (!settings.taskProfilesEnabled ||
+          changeProfileWithSessionReset(getProfileOwnerFor(name), selectedTask, true)) {
+        selectedTask = name;
+      }
+      updateProfileIndicators();
       saveStorageData();
       renderTaskDropdown();
       renderActiveTaskManageList();
@@ -3099,7 +3826,12 @@
 
       if (wasSelected) {
         const activeTasks = tasks.filter(t => t.status === 'active');
-        selectedTask = activeTasks.length > 0 ? activeTasks[0].name : NO_TASK_NAME;
+        const nextTask = activeTasks.length > 0 ? activeTasks[0].name : NO_TASK_NAME;
+        if (settings.taskProfilesEnabled) {
+          changeProfileWithSessionReset(getProfileOwnerFor(nextTask), selectedTask, false);
+        }
+        selectedTask = nextTask;
+        updateProfileIndicators();
       }
 
       saveStorageData();
@@ -3153,6 +3885,7 @@
       });
 
       if (selectedTask === oldName) selectedTask = newName;
+      if (profileOwner === oldName) profileOwner = newName; // タスクの設定はタスクと一緒に引き継ぐ
 
       saveStorageData();
       renderTaskDropdown();
@@ -3167,14 +3900,21 @@
       if (!ok) return;
 
       const wasSelected = task.name === selectedTask;
-      tasks.splice(idx, 1);
-
       if (wasSelected) {
-        const activeTasks = tasks.filter(t => t.status === 'active');
-        selectedTask = activeTasks.length > 0 ? activeTasks[0].name : NO_TASK_NAME;
+        const activeTasks = tasks.filter((t, i) => i !== idx && t.status === 'active');
+        const nextTask = activeTasks.length > 0 ? activeTasks[0].name : NO_TASK_NAME;
+        // 削除するタスクの設定から抜けてから削除する
+        if (settings.taskProfilesEnabled) {
+          changeProfileWithSessionReset(getProfileOwnerFor(nextTask), selectedTask, false);
+        }
+        selectedTask = nextTask;
       }
+      tasks.splice(idx, 1);
+      updateProfileIndicators();
 
       saveStorageData();
+      // タスクの設定でだけ使っていた音楽ファイルは、どこからも使われなくなるので片付ける
+      cleanupOrphanedAudioFiles();
       renderTaskDropdown();
       renderActiveTaskManageList();
       renderCompletedTaskList();
@@ -3522,7 +4262,9 @@
         entries.forEach(en => {
           const div = document.createElement('div');
           div.className = 'timeline-item';
-          const timeLabel = en.manual ? `手動入力（${en.minutes}分）` : `${formatClock(en.start)} - ${formatClock(en.end)}`;
+          const timeLabel = en.manual ? `手動入力（${en.minutes}分）`
+            : en.interrupted ? `${formatClock(en.start)} - ${formatClock(en.end)}（中断・${en.minutes}分）`
+            : `${formatClock(en.start)} - ${formatClock(en.end)}`;
           div.innerHTML = `
             <span class="timeline-time">${escapeHtml(timeLabel)}</span>
             <span class="timeline-task">${escapeHtml(en.task)}</span>
@@ -3595,16 +4337,51 @@
       settings.notificationVolume = parseInt(document.getElementById('notificationVolumeInput').value);
       if (isNaN(settings.notificationVolume)) settings.notificationVolume = DEFAULTS.notificationVolume;
       settings.skipLogWhenNoTask = document.getElementById('skipLogWhenNoTaskInput').checked;
+      settings.miniTimerEnabled = document.getElementById('miniTimerEnabledInput').checked;
+      settings.miniTimerFlash = document.getElementById('miniTimerFlashInput').checked;
+      // 小型タイマーをオフにしたら、開いているウィンドウも閉じる
+      if (!settings.miniTimerEnabled) closeMiniTimer();
+      updateMiniTimerBtn();
+
+      // タスクごとの設定のオン/オフ。切り替えで今の設定の持ち主が変わる場合は、
+      // タスクを切り替えたときと同じ扱い（確認・中断の記録・セッションのやり直し）にする
+      const profilesInput = document.getElementById('taskProfilesEnabledInput');
+      const prevProfilesEnabled = settings.taskProfilesEnabled;
+      if (profilesInput.checked !== prevProfilesEnabled) {
+        if (profilesInput.checked) {
+          // オンにした時点で設定を持っていないタスクに、「None」の設定を複製して持たせる
+          const standard = captureProfile();
+          tasks.forEach(t => { if (!t.profile) t.profile = cloneProfile(standard); });
+        }
+        settings.taskProfilesEnabled = profilesInput.checked;
+        const ok = changeProfileWithSessionReset(getProfileOwnerFor(selectedTask), selectedTask, true);
+        if (!ok) {
+          settings.taskProfilesEnabled = prevProfilesEnabled;
+          profilesInput.checked = prevProfilesEnabled;
+        }
+        updateProfileIndicators();
+        renderActiveTaskManageList();
+      }
 
       saveStorageData();
       document.getElementById('targetPomoDisplay').textContent = settings.targetPomo;
       closeModal('settingsModal');
 
-      if (!isRunning) {
-        timeLeft = settings[currentMode + 'Time'] ? settings[currentMode + 'Time'] * 60 : settings.workTime * 60;
-        totalTime = timeLeft;
-        updateTimerUI();
+      // 止まっているときは、新しい時間をすぐ反映する。
+      // ただしセッションの途中（一時停止中）なら、途中経過を消さないよう残り時間はそのままにし、
+      // 新しい時間は次のセッションから使う
+      if (!isRunning && !isSessionInProgress()) {
+        totalTime = getModeDurationSec(currentMode);
+        timeLeft = totalTime;
       }
+      updateTimerUI();
+    }
+
+    // モード（作業 / 短休憩 / 長休憩）ごとの、設定上のセッションの長さ（秒）
+    function getModeDurationSec(mode) {
+      if (mode === 'shortBreak') return settings.shortBreak * 60;
+      if (mode === 'longBreak') return settings.longBreak * 60;
+      return settings.workTime * 60;
     }
 
     function resetToDefaults() {
@@ -3621,6 +4398,8 @@
       document.getElementById('notificationVolumeInput').value = DEFAULTS.notificationVolume;
       document.getElementById('notificationVolumeText').textContent = `${DEFAULTS.notificationVolume}%`;
       document.getElementById('skipLogWhenNoTaskInput').checked = DEFAULTS.skipLogWhenNoTask;
+      document.getElementById('miniTimerEnabledInput').checked = DEFAULTS.miniTimerEnabled;
+      document.getElementById('miniTimerFlashInput').checked = DEFAULTS.miniTimerFlash;
       saveSettings();
     }
   </script>
